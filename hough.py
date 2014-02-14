@@ -64,6 +64,9 @@ def getXYZ(hit,track):
     z = track.velo_z_hit[index]
     return x,y,z
 
+def transform(x1,x2,theta):
+    return x1*np.cos(theta) + x2*np.sin(theta)
+
 def calcRho(plane,th,x,y,z):
     if plane == XY:
         rho = transform(x,y,th)
@@ -73,13 +76,10 @@ def calcRho(plane,th,x,y,z):
         rho = transform(z,y,th)
     return rho
 
-def transform(x1,x2,theta):
-    return x1*np.cos(theta) + x2*np.sin(theta)
-
 def setDictionaries(dictionaries,tracks):
     for t in itools.ifilter(isGood,tracks):
         #"GET HIT LIST"
-        hits = []*track.vplen
+        hits = []*t.vplen
         for h in hits:
             x,y,z = getXYZ(h,t)
             rho = [],[],[]  
@@ -111,6 +111,8 @@ def calcParams(peaklists,paramlists):
 
 def createHoughGraph(mg,tracks):
     setDictionaries(Dictionaries,tracks)
+    print "Dicts created"
+    sys.exit(0)
     dict2Matrix(Dictionaries,Matrices)
     searchPeaks(Matrices,PeakLists)
     calcParams(PeakLists,ParamLists)
@@ -140,7 +142,7 @@ if __name__ == "__main__":
     Tracklets = [],[],[] #tracks on every plane
     Matched = [],[],[] #tracks on every plane
     Dictionaries = mydict(),mydict(),mydict()
-    Matrices = matrixInit(),matrixInit(),matrixInit()
+    #Matrices = matrixInit(),matrixInit(),matrixInit()
     theta = range(180)
 
 
@@ -156,7 +158,7 @@ if __name__ == "__main__":
         print "ERROR: createHitsGraph"
         sys.exit(1)
     
-    sys.exit(0) #debug
+    #sys.exit(0) #debug
     
     if not createHoughGraph(MultiGraphs, Tracks):
         print "ERROR: createHoughGraph"

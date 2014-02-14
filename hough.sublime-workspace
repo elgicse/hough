@@ -4,12 +4,24 @@
 		"selected_items":
 		[
 			[
-				"gr",
-				"gr"
+				"Ma",
+				"Matched"
 			],
 			[
-				"velo",
-				"velo_y_hit"
+				"tack",
+				"trackletsContainer"
+			],
+			[
+				"ma",
+				"makeTracklets"
+			],
+			[
+				"pr",
+				"print"
+			],
+			[
+				"gr",
+				"gr"
 			],
 			[
 				"XZ",
@@ -27,7 +39,7 @@
 			"file": "hough.py",
 			"settings":
 			{
-				"buffer_size": 4556,
+				"buffer_size": 5068,
 				"line_ending": "Unix"
 			}
 		}
@@ -50,7 +62,7 @@
 	},
 	"distraction_free":
 	{
-		"menu_visible": true,
+		"menu_visible": false,
 		"show_minimap": false,
 		"show_open_files": false,
 		"show_tabs": false,
@@ -59,7 +71,10 @@
 	},
 	"file_history":
 	[
-		"/home/salvo/Scaricati/Hough/hough.py",
+		"/home/elena/.config/sublime-text-3/Packages/User/Distraction Free.sublime-settings",
+		"/home/elena/Scrivania/PhD-UZH/Work/Trigger/analysis/brunelScripts/hough.py",
+		"/home/elena/.config/sublime-text-3/Packages/User/Default (Linux).sublime-keymap",
+		"/home/elena/.config/sublime-text-3/Packages/Default/Default (Linux).sublime-keymap",
 		"/home/salvo/Scrivania/PH-CMD/hltd/python/collate.py",
 		"/home/salvo/Scrivania/PH-CMD/hltd/python/daemon.py",
 		"/home/salvo/Scrivania/PH-CMD/hltd/python/hltd.py",
@@ -89,7 +104,7 @@
 	],
 	"find":
 	{
-		"height": 44.0
+		"height": 26.0
 	},
 	"find_in_files":
 	{
@@ -103,12 +118,7 @@
 		"case_sensitive": false,
 		"find_history":
 		[
-			"r.TGraph",
-			"self.graph[grID]",
-			"SetLineColor",
-			"self.graph[grID].",
-			".graph[grID]",
-			"self",
+			"event",
 			"create graph",
 			"coord",
 			"X",
@@ -143,6 +153,7 @@
 		"regex": false,
 		"replace_history":
 		[
+			"track"
 		],
 		"reverse": false,
 		"show_context": true,
@@ -162,15 +173,15 @@
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 4556,
+						"buffer_size": 5068,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								1252,
-								1252
+								2028,
+								2028
 							]
 						],
 						"settings":
@@ -180,7 +191,7 @@
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 391.0,
+						"translation.y": 1192.0,
 						"zoom_level": 1.0
 					},
 					"stack_index": 0,
@@ -227,7 +238,7 @@
 	"project": "hough.sublime-project",
 	"replace":
 	{
-		"height": 50.0
+		"height": 48.0
 	},
 	"save_all_on_build": true,
 	"select_file":
@@ -257,7 +268,7 @@
 		[
 			[
 				"",
-				"~/Scrivania/TARGET/1-SOFTWARE/2-SNIPER/sniper.sublime-project"
+				"~/Scrivania/PH-CMD/hltd.sublime-project"
 			]
 		],
 		"width": 532.0
@@ -276,7 +287,7 @@
 	"show_minimap": true,
 	"show_open_files": true,
 	"show_tabs": true,
-	"side_bar_visible": false,
+	"side_bar_visible": true,
 	"side_bar_width": 289.0,
 	"status_bar_visible": true,
 	"template_settings":
