@@ -4,6 +4,10 @@
 		"selected_items":
 		[
 			[
+				"the",
+				"thetaBinning"
+			],
+			[
 				"Ma",
 				"Matched"
 			],
@@ -39,7 +43,27 @@
 			"file": "hough.py",
 			"settings":
 			{
-				"buffer_size": 5068,
+				"buffer_size": 6197,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"contents": "from scipy import *\nfrom numpy import *\n \ndef get_bin_mean(a, b_start, b_end):\n    ind_upper = nonzero(a >= b_start)[0]\n    a_upper = a[ind_upper]\n    a_range = a_upper[nonzero(a_upper < b_end)[0]]\n    mean_val = mean(a_range)\n    return mean_val\n \n \ndata = rand(100)\nbins = linspace(0, 1, 10)\nbinned_data = []\n \nn = 0\nfor n in range(0, len(bins)-1):\n    b_start = bins[n]\n    b_end = bins[n+1]\n    binned_data.append(get_bin_mean(data, b_start, b_end))\n \nprint binned_data\n       \nimport numpy\ndata = numpy.random.random(100)\nbins = linspace(0, 1, 10)\ndigitized = numpy.digitize(data, bins)\nbin_means = [data[digitized == i].mean() for i in range(1, len(bins))]\n       \nbin_means = (numpy.histogram(data, bins, weights=data)[0] /\n             numpy.histogram(data, bins)[0])\n\n\ndef binna(val,top,nbins):\n    val = [val]\n    bins = linspace(0,top,nbins)\n    digi = digitize(val,bins)\n    out = bins[digi-1] + diff(bins)[digi-1]/2\n    return round(out[0],2)",
+			"file": "binning.py",
+			"file_size": 956,
+			"file_write_time": 130372033128619530,
+			"settings":
+			{
+				"buffer_size": 955,
+				"line_ending": "Unix",
+				"name": "from scipy import *"
+			}
+		},
+		{
+			"file": "/home/elena/Scrivania/PhD-UZH/Work/Trigger/analysis/brunelScripts/hough.py",
+			"settings":
+			{
+				"buffer_size": 8015,
 				"line_ending": "Unix"
 			}
 		}
@@ -47,17 +71,26 @@
 	"build_system": "",
 	"command_palette":
 	{
-		"height": 548.0,
+		"height": 159.0,
 		"selected_items":
 		[
+			[
+				"git",
+				"Package Control: Add Repository"
+			],
+			[
+				"install",
+				"Package Control: Install Package"
+			]
 		],
-		"width": 548.0
+		"width": 449.0
 	},
 	"console":
 	{
-		"height": 0.0,
+		"height": 146.0,
 		"history":
 		[
+			"import urllib.request,os,hashlib; h = '7183a2d3e96f11eeadd761d777e62404e330c659d4bb41d3bdf022e94cab3cd0'; pf = 'Package Control.sublime-package'; ipp = sublime.installed_packages_path(); urllib.request.install_opener( urllib.request.build_opener( urllib.request.ProxyHandler()) ); by = urllib.request.urlopen( 'http://sublime.wbond.net/' + pf.replace(' ', '%20')).read(); dh = hashlib.sha256(by).hexdigest(); print('Error validating download (got %s instead of %s), please try manual install' % (dh, h)) if dh != h else open(os.path.join( ipp, pf), 'wb' ).write(by)"
 		]
 	},
 	"distraction_free":
@@ -71,8 +104,8 @@
 	},
 	"file_history":
 	[
-		"/home/elena/.config/sublime-text-3/Packages/User/Distraction Free.sublime-settings",
 		"/home/elena/Scrivania/PhD-UZH/Work/Trigger/analysis/brunelScripts/hough.py",
+		"/home/elena/.config/sublime-text-3/Packages/User/Distraction Free.sublime-settings",
 		"/home/elena/.config/sublime-text-3/Packages/User/Default (Linux).sublime-keymap",
 		"/home/elena/.config/sublime-text-3/Packages/Default/Default (Linux).sublime-keymap",
 		"/home/salvo/Scrivania/PH-CMD/hltd/python/collate.py",
@@ -173,15 +206,15 @@
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 5068,
+						"buffer_size": 6197,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								2028,
-								2028
+								2656,
+								2656
 							]
 						],
 						"settings":
@@ -191,10 +224,69 @@
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 1192.0,
+						"translation.y": 1026.0,
 						"zoom_level": 1.0
 					},
 					"stack_index": 0,
+					"type": "text"
+				},
+				{
+					"buffer": 1,
+					"file": "binning.py",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 955,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								955,
+								955
+							]
+						],
+						"settings":
+						{
+							"auto_name": "from scipy import *",
+							"syntax": "Packages/Python/Python.tmLanguage"
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 1,
+					"type": "text"
+				},
+				{
+					"buffer": 2,
+					"file": "/home/elena/Scrivania/PhD-UZH/Work/Trigger/analysis/brunelScripts/hough.py",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 8015,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								0,
+								0
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Python/Python.tmLanguage",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 324.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 2,
 					"type": "text"
 				}
 			]
@@ -202,11 +294,11 @@
 	],
 	"incremental_find":
 	{
-		"height": 26.0
+		"height": 34.0
 	},
 	"input":
 	{
-		"height": 0.0
+		"height": 34.0
 	},
 	"layout":
 	{
@@ -287,7 +379,7 @@
 	"show_minimap": true,
 	"show_open_files": true,
 	"show_tabs": true,
-	"side_bar_visible": true,
+	"side_bar_visible": false,
 	"side_bar_width": 289.0,
 	"status_bar_visible": true,
 	"template_settings":
