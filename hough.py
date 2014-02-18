@@ -25,6 +25,11 @@ def mgInit():
 def matrixInit():
     return np.matrix()
 
+def makeThetaArray(mint,maxt,binning):
+    theta = np.arange(mint,maxt,binning)
+    theta = theta * np.pi / 180
+    return theta
+
 def isGood(track):
     return (track.reconstructible_asLong 
         and track.true_p > 3000 
@@ -67,6 +72,32 @@ def getXYZ(hit,track):
 def transform(x1,x2,theta):
     return x1*np.cos(theta) + x2*np.sin(theta)
 
+def makeBinning(val,bot,top,nbins):
+    val = [val]
+    bins = np.linspace(bot,top,nbins)
+    digi = np.digitize(val,bins)
+    out = bins[digi-1] + np.diff(bins)[digi-1]/2
+    return round(out[0],2)
+
+class myRho():
+    """raw and binned Rho values"""
+    self.minRho = 0
+    self.maxRho = 1000
+    self.rhoRes = 1
+    def __init__(self, raw):
+        super(myRho, self).__init__()
+        self.raw = raw
+        #self.nrBins = int((self.maxRho - self.minRho) / self.rhoRes)
+    def self.nrBins(self):
+        return int((self.maxRho - self.minRho) / self.rhoRes)
+    def self.binned(self):
+        self.digiRho = makeBinning(self.raw, self.minRho, self.maxRho, self.nrBins(self))
+        return self.digiRho
+    def self.setMaxRho(self,val):
+        self.maxRho = val
+    def self.setRhoResolution(self,val):
+        self.rhoRes = val
+
 def calcRho(plane,th,x,y,z):
     if plane == XY:
         rho = transform(x,y,th)
@@ -74,7 +105,9 @@ def calcRho(plane,th,x,y,z):
         rho = transform(z,x,th)
     if plane == YZ:
         rho = transform(z,y,th)
-    return rho
+    #return binRho(rho,maxRho,rhoBinning)
+    rho = myRho(rho)
+    return rho.binned()
 
 def setDictionaries(dictionaries,tracks):
     for t in itools.ifilter(isGood,tracks):
@@ -143,7 +176,8 @@ if __name__ == "__main__":
     Matched = [],[],[] #tracks on every plane
     Dictionaries = mydict(),mydict(),mydict()
     #Matrices = matrixInit(),matrixInit(),matrixInit()
-    theta = range(180)
+    minTheta, maxTheta, thetaBinning = 0.0, 180.0, 0.2
+    theta = makeThetaArray(minTheta,maxTheta,thetaBinning)
 
 
         #root file descriptor
