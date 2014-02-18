@@ -71,31 +71,35 @@ def getXYZ(hit,track):
 def transform(x1,x2,theta):
     return x1*np.cos(theta) + x2*np.sin(theta)
 
-def makeBinning(val,bot,top,nbins):
-    val = [val]
-    bins = np.linspace(bot,top,nbins)
-    digi = np.digitize(val,bins)
-    out = bins[digi-1] + np.diff(bins)[digi-1]/2
-    return round(out[0],2)
 
 class myRho():
     """raw and binned Rho values"""
-    self.minRho = 0
-    self.maxRho = 1000
-    self.rhoRes = 1
-    def __init__(self, raw):
-        super(myRho, self).__init__()
+    def __init__(self, raw, minRho = 0,maxRho = 1000,rhoRes = 1):
         self.raw = raw
+        self.minRho = minRho
+        self.maxRho = maxRho
+        self.rhoRes = rhoRes
         #self.nrBins = int((self.maxRho - self.minRho) / self.rhoRes)
-    def self.nrBins(self):
+    def nrBins(self):
         return int((self.maxRho - self.minRho) / self.rhoRes)
-    def self.binned(self):
-        self.digiRho = makeBinning(self.raw, self.minRho, self.maxRho, self.nrBins(self))
+
+    def binned(self):
+        self.makeBinning()
         return self.digiRho
-    def self.setMaxRho(self,val):
+
+    def setMaxRho(self,val):
         self.maxRho = val
-    def self.setRhoResolution(self,val):
+
+    def setRhoResolution(self,val):
         self.rhoRes = val
+
+    def makeBinning(self):
+        val = [self.raw]
+        bins = np.linspace(self.minRho,self.maxRho,self.nrBins())
+        digi = np.digitize(val,bins)
+        out = bins[digi-1] + np.diff(bins)[digi-1]/2
+        self.digiRho = round(out[0],2)
+        return True
 
 def calcRho(plane,th,x,y,z):
     if plane == XY:
@@ -105,8 +109,7 @@ def calcRho(plane,th,x,y,z):
     if plane == YZ:
         rho = transform(z,y,th)
     #return binRho(rho,maxRho,rhoBinning)
-    rho = myRho(rho)
-    return rho.binned()
+    return myRho(rho)
 
 def setDictionaries(dictionaries,tracks):
     for t in itools.ifilter(isGood,tracks):
@@ -115,7 +118,8 @@ def setDictionaries(dictionaries,tracks):
             x,y,z = getXYZ(h,t)
             rho = [None]*3  
             for th in theta:
-                rho[XY] = calcRho(XY,th,x,y,z)
+                rho[XY] = calcRho(XY,th,x,y,z).binned()
+                
                 "BINNING TO DO"
                 dictionaries[XY].setdefault((rho[XY],th),dict()).setdefault(X,list()).append(x)
                 dictionaries[XY].setdefault((rho[XY],th),dict()).setdefault(Y,list()).append(y)
