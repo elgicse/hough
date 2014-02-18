@@ -63,10 +63,9 @@ def createHitsGraph(mg,tracks):
     return True
 
 def getXYZ(hit,track):
-    index = track.index(hit)
-    x = track.velo_x_hit[index]
-    y = track.velo_y_hit[index]
-    z = track.velo_z_hit[index]
+    x = track.velo_x_hit[hit]
+    y = track.velo_y_hit[hit]
+    z = track.velo_z_hit[hit]
     return x,y,z
 
 def transform(x1,x2,theta):
@@ -111,13 +110,13 @@ def calcRho(plane,th,x,y,z):
 
 def setDictionaries(dictionaries,tracks):
     for t in itools.ifilter(isGood,tracks):
-        #"GET HIT LIST"
-        hits = []*t.vplen
+        hits = range(t.vplen)
         for h in hits:
             x,y,z = getXYZ(h,t)
-            rho = [],[],[]  
+            rho = [None]*3  
             for th in theta:
                 rho[XY] = calcRho(XY,th,x,y,z)
+                "BINNING TO DO"
                 dictionaries[XY].setdefault((rho[XY],th),dict()).setdefault(X,list()).append(x)
                 dictionaries[XY].setdefault((rho[XY],th),dict()).setdefault(Y,list()).append(y)
                 dictionaries[XY].setdefault((rho[XY],th),dict()).setdefault(Z,list()).append(z)
@@ -131,6 +130,7 @@ def setDictionaries(dictionaries,tracks):
                 dictionaries[YZ].setdefault((rho[YZ],th),dict()).setdefault(X,list()).append(x)
                 dictionaries[YZ].setdefault((rho[YZ],th),dict()).setdefault(Y,list()).append(y)
                 dictionaries[YZ].setdefault((rho[YZ],th),dict()).setdefault(Z,list()).append(z)
+    print "DICTS CREATED"
     return True
 
 def dict2Matrix(dictionaries,matrices):
@@ -143,9 +143,7 @@ def calcParams(peaklists,paramlists):
     pass
 
 def createHoughGraph(mg,tracks):
-    setDictionaries(Dictionaries,tracks)
-    print "Dicts created"
-    sys.exit(0)
+    return setDictionaries(Dictionaries,tracks)
     dict2Matrix(Dictionaries,Matrices)
     searchPeaks(Matrices,PeakLists)
     calcParams(PeakLists,ParamLists)
