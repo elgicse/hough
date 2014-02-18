@@ -119,8 +119,7 @@ def setDictionaries(dictionaries,tracks):
             rho = [None]*3  
             for th in theta:
                 rho[XY] = calcRho(XY,th,x,y,z).binned()
-                
-                "BINNING TO DO"
+
                 dictionaries[XY].setdefault((rho[XY],th),dict()).setdefault(X,list()).append(x)
                 dictionaries[XY].setdefault((rho[XY],th),dict()).setdefault(Y,list()).append(y)
                 dictionaries[XY].setdefault((rho[XY],th),dict()).setdefault(Z,list()).append(z)
