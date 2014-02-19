@@ -3,6 +3,8 @@ import ROOT as r
 import numpy as np
 import itertools as itools
 import sys
+import array as arr
+
 
 inrootfile = "data/UTHits.root"
 outrootfile = "data/out/out.root"
@@ -11,6 +13,32 @@ TREENAME = "UTHits/MatchedTracks"
 XY,XZ,YZ = 0,1,2
 YX,ZX,ZY = 0,1,2
 X,Y,Z,W = 0,1,2,3
+
+
+def new_numpy1d_with_pointer(size):
+    np_a = np.zeros( size, dtype=np.float32 )
+    pointer, read_only_flag = np_a.__array_interface__['data']
+    return np_a, pointer
+
+
+def makeMatrices(dictionary):
+    
+    dictionary.update({ "source":{},
+                        "c_source":arr.array( 'L', [0]*binsx ) ,
+                        "dest":{},
+                        "c_dest":arr.array( 'L', [0]*binsx )
+                        })
+
+    for i in xrange(binsx):
+        dictionary.source[i], dictionary.c_source[i] = new_numpy1d_with_pointer( binsy )
+        dictionary.dest[i], dictionary.c_dest[i]     = new_numpy1d_with_pointer( binsy )    
+
+
+    
+
+
+
+
 
 class mydict(dict):
     __getattr__ = dict.__getitem__
@@ -79,9 +107,11 @@ class myRho():
         self.minRho = minRho
         self.maxRho = maxRho
         self.rhoRes = rhoRes
-        #self.nrBins = int((self.maxRho - self.minRho) / self.rhoRes)
-    def nrBins(self):
-        return int((self.maxRho - self.minRho) / self.rhoRes)
+        self.recalcBins()
+
+    def recalcBins(self):
+        self.nrBins = int((self.maxRho - self.minRho) / self.rhoRes)
+        self.bins = np.linspace(self.minRho, self.maxRho, self.nrBins)
 
     def binned(self):
         self.makeBinning()
@@ -89,15 +119,17 @@ class myRho():
 
     def setMaxRho(self,val):
         self.maxRho = val
+        self.recalcBins()
 
     def setRhoResolution(self,val):
         self.rhoRes = val
+        self.recalcBins()
 
     def makeBinning(self):
         val = [self.raw]
-        bins = np.linspace(self.minRho, self.maxRho, self.nrBins())
-        digi = np.digitize(val,bins)
-        out = bins[digi-1] + np.diff(bins)[digi-1]/2
+        #self.bins = np.linspace(self.minRho, self.maxRho, self.nrBins)
+        digi = np.digitize(val,self.bins)
+        out = self.bins[digi-1] + np.diff(self.bins)[digi-1]/2
         self.digiRho = round(out[0],2)
         return True
 
@@ -110,7 +142,7 @@ def calcRho(plane,th,x,y,z):
         rho = transform(z,y,th)
     return myRho(rho)
 
-def setDictionaries(dictionaries,tracks):
+def setDictionaries(dictionaries,tracks,theta):
     for t in itools.ifilter(isGood,tracks):
         hits = range(t.vplen)
         for h in hits:
@@ -139,15 +171,20 @@ def setDictionaries(dictionaries,tracks):
                 dictionaries[YZ][(rho[YZ],th)][Z].append(z)
                 dictionaries[YZ][(rho[YZ],th)][W]+=1
 
-
-
-                
+    global binsx, binsy, rhoSpace
+    rhoSpace = calcRho(YZ,th,x,y,z).bins
+    binsy = calcRho(YZ,th,x,y,z).nrBins
+    binsx = len(theta)   
 
     print "DICTS CREATED"
     return True
 
-def dict2Matrix(dictionaries,matrices):
-    pass
+def linspaceToAxis(linspace, aMin, aMax):
+    """LIST OF VALUES TO LIST OF BIN INDICES"""
+    aBins = len(linspace)
+    axis = np.linspace
+    return axis
+    """RIFARE"""
 
 def searchPeaks(matrices,peaklists):
     pass
@@ -155,9 +192,10 @@ def searchPeaks(matrices,peaklists):
 def calcParams(peaklists,paramlists):
     pass
 
-def createHoughGraph(mg,tracks):
-    return setDictionaries(Dictionaries,tracks)
-    dict2Matrix(Dictionaries,Matrices)
+def createHoughGraph(mg,tracks,theta):
+    setDictionaries(Dictionaries,tracks,theta)
+    makeMatrices(Dictionaries[XY])
+    return
     searchPeaks(Matrices,PeakLists)
     calcParams(PeakLists,ParamLists)
     #"create graphs"
@@ -176,6 +214,8 @@ def matchTracklets(trackletsContainer,dictionaries,matchedTracklets):
 
 if __name__ == "__main__":
     print "HOUGH START..."       
+
+    binsx, binsy, rhoSpace = 0, 0, np.linspace(0, 1000, 1000)
 
     rootPreProcessing()
 
@@ -205,7 +245,7 @@ if __name__ == "__main__":
     
     #sys.exit(0) #debug
     
-    if not createHoughGraph(MultiGraphs, Tracks):
+    if not createHoughGraph(MultiGraphs, Tracks, theta):
         print "ERROR: createHoughGraph"
         sys.exit(1)
     
