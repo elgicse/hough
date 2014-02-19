@@ -10,7 +10,7 @@ outrootfile = "data/out/out.root"
 TREENAME = "UTHits/MatchedTracks"
 XY,XZ,YZ = 0,1,2
 YX,ZX,ZY = 0,1,2
-X,Y,Z = 0,1,2
+X,Y,Z,W = 0,1,2,3
 
 class mydict(dict):
     __getattr__ = dict.__getitem__
@@ -119,23 +119,35 @@ def setDictionaries(dictionaries,tracks):
             rho = [None]*3  
             for th in theta:
                 rho[XY] = calcRho(XY,th,x,y,z).binned()
+                rho[XZ] = calcRho(XZ,th,x,y,z).binned()
+                rho[YZ] = calcRho(YZ,th,x,y,z).binned()
 
-                dictionaries[XY].setdefault((rho[XY],th),dict()).setdefault(X,list()).append(x)
-                dictionaries[XY].setdefault((rho[XY],th),dict()).setdefault(Y,list()).append(y)
-                dictionaries[XY].setdefault((rho[XY],th),dict()).setdefault(Z,list()).append(z)
+                dictionaries[XY].setdefault((rho[XY],th), {X:[],Y:[],Z:[],W:0})
+                dictionaries[XY][(rho[XY],th)][X].append(x)
+                dictionaries[XY][(rho[XY],th)][Y].append(y)
+                dictionaries[XY][(rho[XY],th)][Z].append(z)
+                dictionaries[XY][(rho[XY],th)][W]+=1
 
-                rho[XZ] = calcRho(XZ,th,x,y,z)
-                dictionaries[XZ].setdefault((rho[XZ],th),dict()).setdefault(X,list()).append(x)
-                dictionaries[XZ].setdefault((rho[XZ],th),dict()).setdefault(Y,list()).append(y)
-                dictionaries[XZ].setdefault((rho[XZ],th),dict()).setdefault(Z,list()).append(z)
+                dictionaries[XZ].setdefault((rho[XZ],th), {X:[],Y:[],Z:[],W:0})
+                dictionaries[XZ][(rho[XZ],th)][X].append(x)
+                dictionaries[XZ][(rho[XZ],th)][Y].append(y)
+                dictionaries[XZ][(rho[XZ],th)][Z].append(z)
+                dictionaries[XZ][(rho[XZ],th)][W]+=1
 
-                rho[YZ] = calcRho(YZ,th,x,y,z)
-                dictionaries[YZ].setdefault((rho[YZ],th),dict()).setdefault(X,list()).append(x)
-                dictionaries[YZ].setdefault((rho[YZ],th),dict()).setdefault(Y,list()).append(y)
-                dictionaries[YZ].setdefault((rho[YZ],th),dict()).setdefault(Z,list()).append(z)
+                dictionaries[YZ].setdefault((rho[YZ],th), {X:[],Y:[],Z:[],W:0})
+                dictionaries[YZ][(rho[YZ],th)][X].append(x)
+                dictionaries[YZ][(rho[YZ],th)][Y].append(y)
+                dictionaries[YZ][(rho[YZ],th)][Z].append(z)
+                dictionaries[YZ][(rho[YZ],th)][W]+=1
+
+
+
+                
+
     print "DICTS CREATED"
     return True
 
+(1000.5,  3.1381019950858047)
 def dict2Matrix(dictionaries,matrices):
     pass
 
