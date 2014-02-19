@@ -95,7 +95,7 @@ class myRho():
 
     def makeBinning(self):
         val = [self.raw]
-        bins = np.linspace(self.minRho,self.maxRho,self.nrBins())
+        bins = np.linspace(self.minRho, self.maxRho, self.nrBins())
         digi = np.digitize(val,bins)
         out = bins[digi-1] + np.diff(bins)[digi-1]/2
         self.digiRho = round(out[0],2)
@@ -108,7 +108,6 @@ def calcRho(plane,th,x,y,z):
         rho = transform(z,x,th)
     if plane == YZ:
         rho = transform(z,y,th)
-    #return binRho(rho,maxRho,rhoBinning)
     return myRho(rho)
 
 def setDictionaries(dictionaries,tracks):
@@ -119,10 +118,10 @@ def setDictionaries(dictionaries,tracks):
             rho = [None]*3  
             for th in theta:
                 rho[XY] = calcRho(XY,th,x,y,z).binned()
-
                 dictionaries[XY].setdefault((rho[XY],th),dict()).setdefault(X,list()).append(x)
                 dictionaries[XY].setdefault((rho[XY],th),dict()).setdefault(Y,list()).append(y)
                 dictionaries[XY].setdefault((rho[XY],th),dict()).setdefault(Z,list()).append(z)
+                dictionaries[XY][(rho[XY],th)] = dictionaries[XY].setdefault((rho[XY],th),0) + 1
 
                 rho[XZ] = calcRho(XZ,th,x,y,z)
                 dictionaries[XZ].setdefault((rho[XZ],th),dict()).setdefault(X,list()).append(x)
