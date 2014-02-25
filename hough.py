@@ -34,9 +34,12 @@ def makeMatrices(dictionary):
         dictionary.dest[i], dictionary.c_dest[i]     = new_numpy1d_with_pointer( binsy )    
 
 
-    
+    for i in xrange(binsx):
+        for j in xrange(binsy):
+            dictionary.source[i][j] = "W alla posizione i,j degli array ordinati di rho e theta"
+    """ORDINARE GLI ARRAY"""
 
-
+    matrices = sumMatrices(XY), sumMatrices(XZ), sumMatrices(YZ)
 
 
 
@@ -186,8 +189,25 @@ def linspaceToAxis(linspace, aMin, aMax):
     return axis
     """RIFARE"""
 
-def searchPeaks(matrices,peaklists):
+def sumMatrices(plane):
     pass
+
+def searchPeaks(matrices,peaklists):
+    """PSEUDO - CODE """
+    sigma = 1.3
+    threshold = 22
+    pList = [], [], []
+    paramList = [], [], []
+    i = -1
+    for matrix in matrices:
+        i += 1
+        spectrum = r.TSpectrum()
+        nPeaks = spectrum.SearchHighRes("c_source","c_dest",binsx,binsy,sigma,threshold,r.kTRUE,3,r.kFALSE,3)
+        for j in xrange(nPeaks):
+            pList[i].append("peak parameters of peak j")
+        paramList[i].append(calcParams(pList[i]))
+    return paramList
+    #pass
 
 def calcParams(peaklists,paramlists):
     pass
@@ -205,6 +225,13 @@ def createHoughGraph(mg,tracks,theta):
     return True
 
 def makeTracklets(params,trackletsContainer):
+    plane = -1
+    for parList in params: #for every plane
+        plane +=1
+        for pars in parList:
+            track = r.TF1("pol1") #completare cosruttore!!!!!!!!
+            track.SetParameters(pars)
+            trackletsContainer[plane].append(tracks)
     pass
 
 def matchTracklets(trackletsContainer,dictionaries,matchedTracklets):
