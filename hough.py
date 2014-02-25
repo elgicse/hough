@@ -63,6 +63,7 @@ def makeMatrices(dictionary):
             sourceHist.SetBinContent(j+1,k+1,dictionary.source[j][k])
 
     sourceHist.Draw("surf2")
+    sourceHist.Write()
 
     time.sleep(5)
 
@@ -132,7 +133,7 @@ def transform(x1,x2,theta):
 
 class myRho():
     """raw and binned Rho values"""
-    def __init__(self, raw, minRho = 0,maxRho = 1000,rhoRes = 1):
+    def __init__(self, raw, minRho = -1000,maxRho = 1000,rhoRes = 1):
         self.raw = raw
         self.minRho = minRho
         self.maxRho = maxRho
@@ -174,7 +175,7 @@ def calcRho(plane,th,x,y,z):
 
 def setDictionaries(dictionaries,tracks,theta):
     for t in itools.ifilter(isGood,tracks):
-        hits = range(t.vplen)
+        hits = xrange(t.vplen)
         for h in hits:
             x,y,z = getXYZ(h,t)
             rho = [None]*3  
@@ -241,7 +242,7 @@ def calcParams(peaklists,paramlists):
 
 def createHoughGraph(mg,tracks,theta):
     setDictionaries(Dictionaries,tracks,theta)
-    makeMatrices(Dictionaries[XY])
+    makeMatrices(Dictionaries[XZ])
     return
     searchPeaks(Matrices,PeakLists)
     calcParams(PeakLists,ParamLists)
