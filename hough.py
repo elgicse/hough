@@ -4,7 +4,7 @@ import numpy as np
 import itertools as itools
 import sys
 import array as arr
-
+import time
 
 inrootfile = "data/UTHits.root"
 outrootfile = "data/out/out.root"
@@ -20,6 +20,13 @@ def new_numpy1d_with_pointer(size):
     pointer, read_only_flag = np_a.__array_interface__['data']
     return np_a, pointer
 
+def key2index(key,rhomin,rhomax,thetamin,thetamax):
+    col = int(np.round(key[1]*(rhomax-rhomin)/binsy))
+    row = int(np.round(key[0]*(thetamax-thetamin)/binsx))
+    return row,col
+
+
+
 
 def makeMatrices(dictionary):
     
@@ -33,13 +40,33 @@ def makeMatrices(dictionary):
         dictionary.source[i], dictionary.c_source[i] = new_numpy1d_with_pointer( binsy )
         dictionary.dest[i], dictionary.c_dest[i]     = new_numpy1d_with_pointer( binsy )    
 
+    keys = dictionary.keys()
+    del keys[keys.index("source")]
+    del keys[keys.index("dest")]
+    del keys[keys.index("c_source")]
+    del keys[keys.index("c_dest")]
 
-    for i in xrange(binsx):
-        for j in xrange(binsy):
-            dictionary.source[i][j] = "W alla posizione i,j degli array ordinati di rho e theta"
-    """ORDINARE GLI ARRAY"""
+    rhomax = max(keys,key=lambda k: k[0])[0]
+    rhomin = min(keys,key=lambda k: k[0])[0]
+    thetamax = max(keys,key=lambda k: k[1])[1]
+    thetamin = min(keys,key=lambda k: k[1])[1]
 
-    matrices = sumMatrices(XY), sumMatrices(XZ), sumMatrices(YZ)
+    for key in keys:
+        i,j = key2index(key,rhomin,rhomax,thetamin,thetamax)
+        dictionary.source[i][j] = dictionary[key][W]
+
+
+
+    sourceHist = r.TH2F("sourceHist", "sourceHist", binsx, 0, binsx, binsy, 0, binsy)
+    for j in range(binsx):
+        for k in range(binsy):
+            sourceHist.SetBinContent(j+1,k+1,dictionary.source[j][k])
+
+    sourceHist.Draw("surf2")
+
+    time.sleep(5)
+
+    
 
 
 
