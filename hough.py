@@ -21,9 +21,15 @@ def new_numpy1d_with_pointer(size):
     return np_a, pointer
 
 def key2index(key,rhomin,rhomax,thetamin,thetamax):
-    col = int(np.round(key[1]*(rhomax-rhomin)/binsy))
-    row = int(np.round(key[0]*(thetamax-thetamin)/binsx))
-    return row,col
+    #key[1] is theta, key[0] is rho
+    #rows are thetas, columns are rhos
+
+    #col = int(np.round(key[1]*(rhomax-rhomin)/binsy))
+    #row = int(np.round(key[0]*(thetamax-thetamin)/binsx))
+
+    rowIdx = int(np.round( (key[1]-thetamin)*(binsx-1)/(thetamax-thetamin) ))
+    colIdx = int(np.round( (key[0]-rhomin)*(binsy-1)/(rhomax-rhomin) ))
+    return rowIdx,colIdx
 
 
 
@@ -65,7 +71,8 @@ def makeMatrices(dictionary):
     sourceHist.Draw("surf2")
     sourceHist.Write()
 
-    time.sleep(5)
+    while True:
+        time.sleep(5)
 
     
 
@@ -257,7 +264,7 @@ def makeTracklets(params,trackletsContainer):
     for parList in params: #for every plane
         plane +=1
         for pars in parList:
-            track = r.TF1("pol1") #completare cosruttore!!!!!!!!
+            track = r.TF1("pol1") #completare costruttore!!!!!!!!
             track.SetParameters(pars)
             trackletsContainer[plane].append(tracks)
     pass
