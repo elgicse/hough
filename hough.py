@@ -174,6 +174,7 @@ class myRho():
         self.digiRho = round(out[0],2)
         return True
 
+
 def calcRho(plane,th,x,y,z):
     if plane == XY:
         rho = transform(x,y,th)
@@ -227,63 +228,77 @@ def linspaceToAxis(linspace, aMin, aMax):
     return axis
     """RIFARE"""
 
-def sumMatrices(plane):
-    pass
+#def sumMatrices(plane):
+#    pass
 
-def searchPeaks(dictionaries,peaklists):
-    """PSEUDO - CODE """
+
+class myTrack():
+    """Track candidates"""
+    def __init__(self, peakParam):
+        self.xPeak = peakParam[0]
+        self.yPeak = peakParam[1]
+        self.peakAmplitude = peakParam[2]
+    
+    def getHitList(self):
+        return self.hitList
+
+    def makeTF1(self, plane, index, lowMargin, highMargin):
+        self.rootTF1 = r.TF1("tracklet"+str(plane)+"_"+str(index),"pol1",lowMargin,highMargin)
+        self.rootTF1.SetParNames("Intercept","Slope")
+        self.rootTF1.FixParameter(0,self.intercept)
+        self.rootTF1.FixParameter(1,self.slope)
+        return self.rootTF1
+
+    #def analyzePeak(xh,yh,dict):
+    def analyzePeak(self,dict):
+        self.theta = thetamin + self.xPeak * (thetamax-thetamin)/binsx
+        self.rho = rhomin + self.yPeak * (rhomax-rhomin)/binsy
+        self.slope = -1 * np.cos(self.theta)/np.sin(self.theta)
+        self.intercept = self.rho / np.sin(self.theta)
+        self.hitList = [dict[key] for key in getKeyList(dict) if areSimilarKeys(key, (self.rho,self.theta))]
+        
+
+
+
+def searchPeaks(dictionaries):
+    trackLists = [], [], []
     sigma = 1.3
     threshold = 22
-    pList = [], [], []
-    paramList = [], [], []
+    #pList = [], [], []
+    #paramList = [], [], []
     iPlane = -1
     for dict in dictionaries:
         iPlane += 1
-
         # Apply TSpectrum class methods
         spectrum = r.TSpectrum()
         nPeaks = spectrum.SearchHighRes(dict.c_source,dict.c_dest,binsx,binsy,sigma,threshold,r.kTRUE,3,r.kFALSE,3)
-
-        # Draw and save the smoothed source histogram
+        # Draw and save the smoothed histogram
         smoothedHist = r.TH2F("smoothedHist"+str(iPlane), "smoothedHist"+str(iPlane), binsx, 0, binsx, binsy, 0, binsy)
         for j in range(binsx):
             for k in range(binsy):
                 smoothedHist.SetBinContent(j+1,k+1,dict.dest[j][k])
         smoothedHist.Draw("surf2")
         smoothedHist.Write()
-
         # Extract and write peak parameters
         peaksFile = open("data/peaks" + str(iPlane) + "_th" + str(threshold) + "_sigma" + str(sigma)+ ".dat","w")
         s = ("Found " + str(npeaks) + " peaks\n")
         peaksFile.write(s)
         s = ("pos1 \t pos2 \t ampl \t theta \t rho \t slope \t intercept\n")
         peaksFile.write(s)
+        # Make tracks from peaks
         for p in xrange(nPeaks):
-            hitList = []
-            xh = spectrum.GetPositionX()[p]
-            yh = spectrum.GetPositionY()[p]
+            xh, yh = spectrum.GetPositionX()[p], spectrum.GetPositionY()[p]
             ampl = dict.source[int(xh)][int(yh)]
-            #pList[iPlane].append( (xh,yh,ampl) )
-            theta,rho,slope,intercept,hitList = analyzePeak(xh,yh,dict)
+            peakParams = (xh, yh, ampl)
+            trackCandidate = myTrack(peakParams)
+            trackCandidate.analyzePeak(dict)
             s = (str(xh) + "\t" + str(yh) + "\t" + str(ampl) + "\t"
-                + str(theta) + "\t" + str(rho) + "\t" 
-                + str(slope) + "\t" + str(intercept) + "\n")
+                + str(trackCandidate.theta) + "\t" + str(trackCandidate.rho) + "\t" 
+                + str(trackCandidate.slope) + "\t" + str(trackCandidate.intercept) + "\n")
             peaksFile.write(s)
-            paramList[iPlane].append( (xh,yh,ampl,theta,rho,slope,intercept) )
+            trackLists[iPlane].append(trackCandidate)
         peaksFile.close()
 
-
-def analyzePeak(xh,yh,dict):
-    th = thetamin + xh * (thetamax-thetamin)/binsx
-    rh = rhomin + yh * (rhomax-rhomin)/binsy
-    slope = -1 * np.cos(th)/np.sin(th)
-    intercept = rh / np.sin(th)
-    hitList = [dict[key] for key in getKeyList(dict) if areSimilarKeys(key, (xh,yh))]
-    return th, rh, slope, intercept, hitList
-
-
-def calcParams(peaklists,paramlists):  #un ciclo di troppo?
-    pass
 
 def createHoughGraph(mg,tracks,theta):
     setDictionaries(Dictionaries,tracks,theta)
@@ -306,7 +321,7 @@ def makeTracklets(mgContainer,params,trackletsContainer):
         p = 0
         for pars in parList: #pars[5] = slope, pars[6] = intercept
             if np.abs(pars[5]) > verticalThreshold:
-                track = r.TF1("tracklet"+str(iPlane)+"_"+str(p),"pol1",low,high) #completare costruttore!!!!!!!!
+                track = r.TF1("tracklet"+str(iPlane)+"_"+str(p),"pol1",low,high)
                 track.SetParNames("Intercept","Slope")
                 track.FixParameter(0,pars[6])
                 track.FixParameter(1,pars[5])
@@ -324,8 +339,38 @@ def areSimilarKeys(k1,k2):
         return 0
 
 
-def matchTracklets(trackletsContainer,dictionaries,matchedTracklets):
-    pass
+#def matchTracklets(trackletsContainer,dictionaries,matchedTracklets):
+def matchTracklets(ParamLists):
+    matched = []
+    "TRACK -> OBJECT"
+    list1 = ParamLists[XY]
+    list2 = ParamLists[XZ]
+    list3 = ParamLists[YZ]
+    for track1 in list1:
+        for track2 in list2:
+            for track3 in list3:
+                if correspondingHits(track1, track2, X) and correspondingHits(track1, track3, Y):
+                    matched.append( (track1, track2, track3) )
+    return matched
+
+
+def correspondingHits(track1, track2, axis):
+    hitList1 = track1.getHitList()
+    hitList2 = track2.getHitList()
+    avgNumberOfHits = 0.5 * ( len(hitList1) + len(hitList2) )
+    minHitsInCommon = 0.7 * avgNumberOfHits - 1
+    nHitsInCommon = 0
+    for hit1 in hitList1:
+        for hit2 in hitList2:
+            if hit1[axis] = hit2[axis]:
+                nHitsInCommon += 1
+    if nHitsInCommon > minHitsInCommon:
+        return True
+    else:
+        return False
+
+
+
 
 #################### MAIN PROGRAM ##############################
 
