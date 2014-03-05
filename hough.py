@@ -32,7 +32,12 @@ def key2index(key,rhomin,rhomax,thetamin,thetamax):
     return rowIdx,colIdx
 
 
-
+def getKeyList(dict):
+    keylist = dict.keys()
+    del keylist[keylist.index("source")]
+    del keylist[keylist.index("dest")]
+    del keylist[keylist.index("c_source")]
+    del keylist[keylist.index("c_dest")]
 
 def makeMatrices(dictionary):
     
@@ -46,16 +51,12 @@ def makeMatrices(dictionary):
         dictionary.source[i], dictionary.c_source[i] = new_numpy1d_with_pointer( binsy )
         dictionary.dest[i], dictionary.c_dest[i]     = new_numpy1d_with_pointer( binsy )    
 
-    keys = dictionary.keys()
-    del keys[keys.index("source")]
-    del keys[keys.index("dest")]
-    del keys[keys.index("c_source")]
-    del keys[keys.index("c_dest")]
+    keys = getKeyList(dictionary)
 
-    rhomax = max(keys,key=lambda k: k[0])[0]
-    rhomin = min(keys,key=lambda k: k[0])[0]
-    thetamax = max(keys,key=lambda k: k[1])[1]
-    thetamin = min(keys,key=lambda k: k[1])[1]
+    global rhomax = max(keys,key=lambda k: k[0])[0]
+    global rhomin = min(keys,key=lambda k: k[0])[0]
+    global thetamax = max(keys,key=lambda k: k[1])[1]
+    global thetamin = min(keys,key=lambda k: k[1])[1]
 
     for key in keys:
         i,j = key2index(key,rhomin,rhomax,thetamin,thetamax)
@@ -126,6 +127,8 @@ def createHitsGraph(mg,tracks):
         mg[XY].Add(hitGraph(t,XY))
         mg[XZ].Add(hitGraph(t,XZ))
         mg[YZ].Add(hitGraph(t,YZ))
+    for g in xrange(2):
+        mg[g].Draw("ap")
     return True
 
 def getXYZ(hit,track):
@@ -227,47 +230,99 @@ def linspaceToAxis(linspace, aMin, aMax):
 def sumMatrices(plane):
     pass
 
-def searchPeaks(matrices,peaklists):
+def searchPeaks(dictionaries,peaklists):
     """PSEUDO - CODE """
     sigma = 1.3
     threshold = 22
     pList = [], [], []
     paramList = [], [], []
-    i = -1
-    for matrix in matrices:
-        i += 1
-        spectrum = r.TSpectrum()
-        nPeaks = spectrum.SearchHighRes("c_source","c_dest",binsx,binsy,sigma,threshold,r.kTRUE,3,r.kFALSE,3)
-        for j in xrange(nPeaks):
-            pList[i].append("peak parameters of peak j")
-        paramList[i].append(calcParams(pList[i]))
-    return paramList
-    #pass
+    iPlane = -1
+    for dict in dictionaries:
+        iPlane += 1
 
-def calcParams(peaklists,paramlists):
+        # Apply TSpectrum class methods
+        spectrum = r.TSpectrum()
+        nPeaks = spectrum.SearchHighRes(dict.c_source,dict.c_dest,binsx,binsy,sigma,threshold,r.kTRUE,3,r.kFALSE,3)
+
+        # Draw and save the smoothed source histogram
+        smoothedHist = r.TH2F("smoothedHist"+str(iPlane), "smoothedHist"+str(iPlane), binsx, 0, binsx, binsy, 0, binsy)
+        for j in range(binsx):
+            for k in range(binsy):
+                smoothedHist.SetBinContent(j+1,k+1,dict.dest[j][k])
+        smoothedHist.Draw("surf2")
+        smoothedHist.Write()
+
+        # Extract and write peak parameters
+        peaksFile = open("data/peaks" + str(iPlane) + "_th" + str(threshold) + "_sigma" + str(sigma)+ ".dat","w")
+        s = ("Found " + str(npeaks) + " peaks\n")
+        peaksFile.write(s)
+        s = ("pos1 \t pos2 \t ampl \t theta \t rho \t slope \t intercept\n")
+        peaksFile.write(s)
+        for p in xrange(nPeaks):
+            hitList = []
+            xh = spectrum.GetPositionX()[p]
+            yh = spectrum.GetPositionY()[p]
+            ampl = dict.source[int(xh)][int(yh)]
+            #pList[iPlane].append( (xh,yh,ampl) )
+            theta,rho,slope,intercept,hitList = analyzePeak(xh,yh,dict)
+            s = (str(xh) + "\t" + str(yh) + "\t" + str(ampl) + "\t"
+                + str(theta) + "\t" + str(rho) + "\t" 
+                + str(slope) + "\t" + str(intercept) + "\n")
+            peaksFile.write(s)
+            paramList[iPlane].append( (xh,yh,ampl,theta,rho,slope,intercept) )
+        peaksFile.close()
+
+
+def analyzePeak(xh,yh,dict):
+    th = thetamin + xh * (thetamax-thetamin)/binsx
+    rh = rhomin + yh * (rhomax-rhomin)/binsy
+    slope = -1 * np.cos(th)/np.sin(th)
+    intercept = rh / np.sin(th)
+    hitList = [dict[key] for key in getKeyList(dict) if areSimilarKeys(key, (xh,yh))]
+    return th, rh, slope, intercept, hitList
+
+
+def calcParams(peaklists,paramlists):  #un ciclo di troppo?
     pass
 
 def createHoughGraph(mg,tracks,theta):
     setDictionaries(Dictionaries,tracks,theta)
     makeMatrices(Dictionaries[XZ])
     return
-    searchPeaks(Matrices,PeakLists)
-    calcParams(PeakLists,ParamLists)
+    searchPeaks(dictionaries,PeakLists)
+    #calcParams(PeakLists,ParamLists)
     #"create graphs"
     #"add graph in multigraph"
     #"save in root file"
     #"create DTP Dictionary"
     return True
 
-def makeTracklets(params,trackletsContainer):
-    plane = -1
+def makeTracklets(mgContainer,params,trackletsContainer):
+    verticalThreshold = 0.15
+    iPlane = -1
     for parList in params: #for every plane
-        plane +=1
-        for pars in parList:
-            track = r.TF1("pol1") #completare costruttore!!!!!!!!
-            track.SetParameters(pars)
-            trackletsContainer[plane].append(tracks)
-    pass
+        iPlane += 1
+        low, high = mgContainer[iPlane].GetXaxis().GetXmin(), mgContainer[iPlane].GetXaxis().GetXmax()
+        p = 0
+        for pars in parList: #pars[5] = slope, pars[6] = intercept
+            if np.abs(pars[5]) > verticalThreshold:
+                track = r.TF1("tracklet"+str(iPlane)+"_"+str(p),"pol1",low,high) #completare costruttore!!!!!!!!
+                track.SetParNames("Intercept","Slope")
+                track.FixParameter(0,pars[6])
+                track.FixParameter(1,pars[5])
+                trackletsContainer[iPlane].append(track)
+                p += 1
+
+
+def areSimilarKeys(k1,k2):
+    """check if two keys are similar"""
+    diff1 = np.abs(k1[0]-k2[0])
+    diff2 = np.abs(k1[1]-k2[1])
+    if (diff1<0.05*k1[0]) and (diff2<0.05*k1[1]):
+        return 1
+    else:
+        return 0
+
 
 def matchTracklets(trackletsContainer,dictionaries,matchedTracklets):
     pass
@@ -296,6 +351,7 @@ if __name__ == "__main__":
         #root file descriptor
     ifd = r.TFile(inrootfile) #input file descriptor 
     ofd = r.TFile(outrootfile,"recreate") #output file descriptor 
+
         #"SET WRITE FLAG AND CREATE OUT TREE"
 
         #get tree
@@ -311,7 +367,7 @@ if __name__ == "__main__":
         print "ERROR: createHoughGraph"
         sys.exit(1)
     
-    if not makeTracklets(ParamLists, Tracklets):
+    if not makeTracklets(MultiGraphs, ParamLists, Tracklets):
         print "ERROR: makeTracklets"
         sys.exit(1)
 
