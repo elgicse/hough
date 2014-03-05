@@ -39,43 +39,35 @@ def getKeyList(dict):
     del keylist[keylist.index("c_source")]
     del keylist[keylist.index("c_dest")]
 
+
+
 def makeMatrices(dictionary):
-    
     dictionary.update({ "source":{},
                         "c_source":arr.array( 'L', [0]*binsx ) ,
                         "dest":{},
                         "c_dest":arr.array( 'L', [0]*binsx )
                         })
-
     for i in xrange(binsx):
         dictionary.source[i], dictionary.c_source[i] = new_numpy1d_with_pointer( binsy )
         dictionary.dest[i], dictionary.c_dest[i]     = new_numpy1d_with_pointer( binsy )    
-
     keys = getKeyList(dictionary)
-
-    global rhomax = max(keys,key=lambda k: k[0])[0]
-    global rhomin = min(keys,key=lambda k: k[0])[0]
-    global thetamax = max(keys,key=lambda k: k[1])[1]
-    global thetamin = min(keys,key=lambda k: k[1])[1]
-
+    global rhomax, rhomin, thetamax, thetamin
+    rhomax = max(keys,key=lambda k: k[0])[0]
+    rhomin = min(keys,key=lambda k: k[0])[0]
+    thetamax = max(keys,key=lambda k: k[1])[1]
+    thetamin = min(keys,key=lambda k: k[1])[1]
     for key in keys:
         i,j = key2index(key,rhomin,rhomax,thetamin,thetamax)
         dictionary.source[i][j] = dictionary[key][W]
-
-
-
     sourceHist = r.TH2F("sourceHist", "sourceHist", binsx, 0, binsx, binsy, 0, binsy)
     for j in range(binsx):
         for k in range(binsy):
             sourceHist.SetBinContent(j+1,k+1,dictionary.source[j][k])
-
     sourceHist.Draw("surf2")
     sourceHist.Write()
-
-    while True:
-        time.sleep(5)
-
-    
+# To view the plot do:
+#    while True:
+#        time.sleep(5)
 
 
 
@@ -149,26 +141,20 @@ class myRho():
         self.maxRho = maxRho
         self.rhoRes = rhoRes
         self.recalcBins()
-
     def recalcBins(self):
         self.nrBins = int((self.maxRho - self.minRho) / self.rhoRes)
         self.bins = np.linspace(self.minRho, self.maxRho, self.nrBins)
-
     def binned(self):
         self.makeBinning()
         return self.digiRho
-
     def setMaxRho(self,val):
         self.maxRho = val
         self.recalcBins()
-
     def setRhoResolution(self,val):
         self.rhoRes = val
         self.recalcBins()
-
     def makeBinning(self):
         val = [self.raw]
-        #self.bins = np.linspace(self.minRho, self.maxRho, self.nrBins)
         digi = np.digitize(val,self.bins)
         out = self.bins[digi-1] + np.diff(self.bins)[digi-1]/2
         self.digiRho = round(out[0],2)
@@ -217,19 +203,17 @@ def setDictionaries(dictionaries,tracks,theta):
     rhoSpace = calcRho(YZ,th,x,y,z).bins
     binsy = calcRho(YZ,th,x,y,z).nrBins
     binsx = len(theta)   
-
     print "DICTS CREATED"
     return True
 
-def linspaceToAxis(linspace, aMin, aMax):
-    """LIST OF VALUES TO LIST OF BIN INDICES"""
-    aBins = len(linspace)
-    axis = np.linspace
-    return axis
-    """RIFARE"""
 
-#def sumMatrices(plane):
-#    pass
+#def linspaceToAxis(linspace, aMin, aMax):
+#    """LIST OF VALUES TO LIST OF BIN INDICES"""
+#    aBins = len(linspace)
+#    axis = np.linspace
+#    return axis
+#    """RIFARE"""
+
 
 
 class myTrack():
@@ -247,6 +231,7 @@ class myTrack():
         self.rootTF1.SetParNames("Intercept","Slope")
         self.rootTF1.FixParameter(0,self.intercept)
         self.rootTF1.FixParameter(1,self.slope)
+        self.rootTF1.SetLineColor(r.kRed)
         return self.rootTF1
 
     #def analyzePeak(xh,yh,dict):
@@ -300,32 +285,20 @@ def searchPeaks(dictionaries):
         peaksFile.close()
 
 
-def createHoughGraph(mg,tracks,theta):
-    setDictionaries(Dictionaries,tracks,theta)
-    makeMatrices(Dictionaries[XZ])
-    return
-    searchPeaks(dictionaries,PeakLists)
-    #calcParams(PeakLists,ParamLists)
-    #"create graphs"
-    #"add graph in multigraph"
-    #"save in root file"
-    #"create DTP Dictionary"
-    return True
-
-def makeTracklets(mgContainer,params,trackletsContainer):
+def makeTracklets(mgContainer,trackLists):
+    # Match tracks in every plane
+    matchedTrackLists = matchTracklets(trackLists)
+    # Make TF1s out of matched tracks
     verticalThreshold = 0.15
     iPlane = -1
-    for parList in params: #for every plane
+    for matchedList in matchedTrackLists: #for every plane
         iPlane += 1
         low, high = mgContainer[iPlane].GetXaxis().GetXmin(), mgContainer[iPlane].GetXaxis().GetXmax()
         p = 0
-        for pars in parList: #pars[5] = slope, pars[6] = intercept
-            if np.abs(pars[5]) > verticalThreshold:
-                track = r.TF1("tracklet"+str(iPlane)+"_"+str(p),"pol1",low,high)
-                track.SetParNames("Intercept","Slope")
-                track.FixParameter(0,pars[6])
-                track.FixParameter(1,pars[5])
-                trackletsContainer[iPlane].append(track)
+        for track in matchedList:
+            if np.abs(pars[5]) > verticalThreshold: # ma serve ancora dopo il matching?
+                func2plot = track.makeTF1(iPlane, p, low, high)
+                mgContainer[iPlane].Add(func2plot)
                 p += 1
 
 
@@ -370,6 +343,17 @@ def correspondingHits(track1, track2, axis):
         return False
 
 
+def createHoughGraph(mg,tracks,theta):
+    setDictionaries(Dictionaries,tracks,theta)
+    makeMatrices(Dictionaries[XZ])
+    searchPeaks(dictionaries,PeakLists)
+    #calcParams(PeakLists,ParamLists)
+    #"create graphs"
+    #"add graph in multigraph"
+    #"save in root file"
+    #"create DTP Dictionary"
+    return True
+
 
 
 #################### MAIN PROGRAM ##############################
@@ -406,19 +390,17 @@ if __name__ == "__main__":
         print "ERROR: createHitsGraph"
         sys.exit(1)
     
-    #sys.exit(0) #debug
-    
     if not createHoughGraph(MultiGraphs, Tracks, theta):
         print "ERROR: createHoughGraph"
         sys.exit(1)
     
-    if not makeTracklets(MultiGraphs, ParamLists, Tracklets):
+    if not makeTracklets(MultiGraphs, Tracklets):
         print "ERROR: makeTracklets"
         sys.exit(1)
 
-    if not matchTracklets(Tracklets, Dictionaries, Matched):
-        print "ERROR: matchTracklets"
-        sys.exit(1)
+    #if not matchTracklets(Tracklets, Dictionaries, Matched):
+    #    print "ERROR: matchTracklets"
+    #    sys.exit(1)
 
     sys.exit(0)
     print "HOUGH END!"
