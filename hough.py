@@ -20,15 +20,15 @@ def new_numpy1d_with_pointer(size):
     pointer, read_only_flag = np_a.__array_interface__['data']
     return np_a, pointer
 
-def key2index(key,rhomin,rhomax,thetamin,thetamax):
+def key2index(key,rmin,rmax,thmin,thmax):
     #key[1] is theta, key[0] is rho
     #rows are thetas, columns are rhos
 
     #col = int(np.round(key[1]*(rhomax-rhomin)/binsy))
     #row = int(np.round(key[0]*(thetamax-thetamin)/binsx))
 
-    rowIdx = int(np.round( (key[1]-thetamin)*(binsx-1)/(thetamax-thetamin) ))
-    colIdx = int(np.round( (key[0]-rhomin)*(binsy-1)/(rhomax-rhomin) ))
+    rowIdx = int(np.round( (key[1]-thmin)*(binsx-1)/(thmax-thmin) ))
+    colIdx = int(np.round( (key[0]-rmin)*(binsy-1)/(rmax-rmin) ))
     return rowIdx,colIdx
 
 
@@ -255,14 +255,16 @@ class myTrack():
         self.rootTF1.FixParameter(0,self.intercept)
         self.rootTF1.FixParameter(1,self.slope)
         self.rootTF1.SetLineColor(r.kRed)
+        self.rootTF1.SetMarkerStyle(1)
         return self.rootTF1
     def analyzePeak(self,plane,dict):
-        self.theta = thetamin + self.xPeak * (thetamax-thetamin)/binsx
-        self.rho = rhomin[plane] + self.yPeak * (rhomax[plane]-rhomin[plane])/binsy
+        self.theta = thetamin + self.xPeak * (thetamax-thetamin)/(binsx-1)
+        self.rho = rhomin[plane] + self.yPeak * (rhomax[plane]-rhomin[plane])/(binsy-1)
         self.slope = -1 * np.cos(self.theta)/np.sin(self.theta)
         self.intercept = self.rho / np.sin(self.theta)
         for key in getKeyList(dict):
             if areSimilarKeys(plane, key, (self.rho,self.theta)):
+            #if key is (self.rho,self.theta):
                 self.hitList += dict[key]['hitlist']
         #self.hitList = [(hit for hit in dict[key]['hitlist']) for key in getKeyList(dict) if areSimilarKeys(plane, key, (self.rho,self.theta))]
         #self.hitList = [dict[key] for key in getKeyList(dict) if (key is (self.rho,self.theta))]
@@ -271,13 +273,14 @@ class myTrack():
 
 def areSimilarKeys(plane,k1,k2):
     """check if two keys are similar"""
-    rhoToll = 2*(rhomax[plane]-rhomin[plane])/binsy
-    thetaToll = 2*(thetamax-thetamin)/binsx
+    rhoToll = 0.5*(rhomax[plane]-rhomin[plane])/binsy
+    thetaToll = 0.5*(thetamax-thetamin)/binsx
 
     diff1 = np.abs(k1[0]-k2[0])
     diff2 = np.abs(k1[1]-k2[1])
 
-    if (diff1<rhoToll*np.abs(k1[0])) and (diff2<thetaToll*np.abs(k1[1])):
+    #if (diff1<rhoToll*np.abs(k1[0])) and (diff2<thetaToll*np.abs(k1[1])):
+    if (diff1<rhoToll) and (diff2<thetaToll):
         return True
     else:
         return False
@@ -293,6 +296,7 @@ def searchPeaks(dictionaries,Tracklets):
     iPlane = -1
     for dict in dictionaries:
         iPlane += 1
+        print "Searching tracks for plane "+str(iPlane)+"..."
         # Apply TSpectrum class methods
         spectrum = r.TSpectrum2()
         nPeaks = spectrum.SearchHighRes(dict.c_source,dict.c_dest,binsx,binsy,sigma,threshold,r.kTRUE,3,r.kFALSE,3)
@@ -304,7 +308,7 @@ def searchPeaks(dictionaries,Tracklets):
         smoothedHist.Draw("surf2")
         smoothedHist.Write()
         # Extract and write peak parameters
-        peaksFile = open("data/peaks" + str(iPlane) + "_th" + str(threshold) + "_sigma" + str(sigma)+ ".dat","w")
+        peaksFile = open("data/peaks_" + str(iPlane) + "_th" + str(threshold) + "_sigma" + str(sigma)+ ".dat","w")
         s = ("Found " + str(nPeaks) + " peaks\n")
         peaksFile.write(s)
         s = ("pos1 \t pos2 \t ampl \t theta \t rho \t slope \t intercept\n")
@@ -333,15 +337,23 @@ def makeTracklets(MultiGraphs,trackLists,Matched):
     iPlane = -1
     for matchedList in Matched: #for every plane
         iPlane += 1
+        tracksFile = open("data/tracks_" + str(iPlane) + ".dat","w")
+        s = ("slope \t intercept\n")
+        tracksFile.write(s)
+        print "Building track graphs for plane "+str(iPlane)+"..."
         MultiGraphs[iPlane].Draw("ap")
         low, high = MultiGraphs[iPlane].GetXaxis().GetXmin(), MultiGraphs[iPlane].GetXaxis().GetXmax()
         p = 0
         for track in matchedList:
-            if np.abs(track.slope) > verticalThreshold: # ma serve ancora dopo il matching?
+            if np.abs(track.slope) < verticalThreshold: # ma serve ancora dopo il matching?
+                s = (str(track.slope) + "\t" + str(track.intercept) + "\n")
+                tracksFile.write(s)
                 func2plot = track.makeTF1(iPlane, p, low, high)
                 funcGraph = r.TGraph(func2plot)
                 MultiGraphs[iPlane].Add(funcGraph)
                 p += 1
+        tracksFile.close()
+    print "Found "+str(p)+" non-vertical tracks."
     return 1
 
 
@@ -354,11 +366,13 @@ def matchTracklets(TrackLists):
     for track1 in list1:
         for track2 in list2:
             for track3 in list3:
-                if correspondingHits(track1, track2, X) and correspondingHits(track1, track3, Y):
+                #if correspondingHits(track1, track2, X) and correspondingHits(track1, track3, Y):
+                if track1.hitList == track2.hitList and track1.hitList == track3.hitList:
                     #matched.append( (track1, track2, track3) )
                     matched[XY].append(track1)
                     matched[XZ].append(track2)
                     matched[YZ].append(track3)
+    print "Found "+str(len(matched[XY]))+" matching tracks."
     return matched
 
 
@@ -442,6 +456,7 @@ if __name__ == "__main__":
         print "ERROR: makeTracklets"
         sys.exit(1)
 
+    print "Saving data..."
     for mg in MultiGraphs:
         mg.Draw("alp")
         mg.Write()
@@ -452,4 +467,4 @@ if __name__ == "__main__":
     #    sys.exit(1)
 
     sys.exit(0)
-    print "HOUGH END!"
+    print "HOUGH END."
