@@ -63,12 +63,14 @@ def makeMatrices(Dictionaries):
             thetamax = max(keys,key=lambda k: k[1])[1]
             thetamin = min(keys,key=lambda k: k[1])[1]
         for key in keys:
-            i,j = key2index(key,rhomin[plane],rhomax[plane],thetamin,thetamax)
-            dictionary.source[i][j] = dictionary[key][W]
+            if dictionary[key][W] > minHitsPerTrack: #remove background prior to TSpectrum2 evaluation
+                i,j = key2index(key,rhomin[plane],rhomax[plane],thetamin,thetamax)
+                dictionary.source[i][j] = dictionary[key][W]
         sourceHist = r.TH2F("sourceHist", "sourceHist", binsx, 0, binsx, binsy, 0, binsy)
         for j in range(binsx):
             for k in range(binsy):
                 sourceHist.SetBinContent(j+1,k+1,dictionary.source[j][k])
+        cSaver.append(r.TCanvas())
         sourceHist.Draw("surf2")
         sourceHist.Write()
         plane += 1
@@ -126,9 +128,10 @@ def createHitsGraph(mg,tracks):
         mg[XY].Add(hitGraph(t,XY))
         mg[XZ].Add(hitGraph(t,XZ))
         mg[YZ].Add(hitGraph(t,YZ))
-    for g in xrange(2):
+    for g in xrange(3):
+        cSaver.append(r.TCanvas())
+        #mg[g].Draw("ap")
         mg[g].SetTitle("HitGraph_plane_"+str(g))
-        mg[g].Draw("ap")
         mg[g].Write()
     return True
 
@@ -144,7 +147,7 @@ def transform(x1,x2,theta):
 
 class myRho():
     """raw and binned Rho values"""
-    def __init__(self, raw, minRho = -1000,maxRho = 1000,rhoRes = 1):
+    def __init__(self, raw, minRho = -1000,maxRho = 1000,rhoRes = 2):
         self.raw = raw
         self.minRho = minRho
         self.maxRho = maxRho
@@ -288,23 +291,27 @@ def areSimilarKeys(plane,k1,k2):
 
 
 def searchPeaks(dictionaries,Tracklets):
-    #trackLists = [], [], []
-    sigma = 1.3
-    threshold = 22
-    #pList = [], [], []
-    #paramList = [], [], []
     iPlane = -1
     for dict in dictionaries:
         iPlane += 1
         print "Searching tracks for plane "+str(iPlane)+"..."
         # Apply TSpectrum class methods
         spectrum = r.TSpectrum2()
+        sigma = 1
+        threshold = 20
+        if iPlane is XY:
+            threshold = 70
+            sigma = 1.5
+        #if iPlane is YZ:
+        #    threshold = 23
         nPeaks = spectrum.SearchHighRes(dict.c_source,dict.c_dest,binsx,binsy,sigma,threshold,r.kTRUE,3,r.kFALSE,3)
+        print "Plane " + str(iPlane) + ": " + str(nPeaks) + " peaks found in Hough accumulator."
         # Draw and save the smoothed histogram
         smoothedHist = r.TH2F("smoothedHist"+str(iPlane), "smoothedHist"+str(iPlane), binsx, 0, binsx, binsy, 0, binsy)
         for j in range(binsx):
             for k in range(binsy):
                 smoothedHist.SetBinContent(j+1,k+1,dict.dest[j][k])
+        cSaver.append(r.TCanvas())
         smoothedHist.Draw("surf2")
         smoothedHist.Write()
         # Extract and write peak parameters
@@ -329,37 +336,68 @@ def searchPeaks(dictionaries,Tracklets):
         peaksFile.close()
 
 
-def makeTracklets(MultiGraphs,trackLists,Matched):
+def makeTracklets(MultiGraphs,trackLists):
     # Match tracks in every plane
     Matched = matchTracklets(trackLists)
+    
     # Make TF1s out of matched tracks
     verticalThreshold = 0.15
-    iPlane = -1
-    for matchedList in Matched: #for every plane
-        iPlane += 1
-        tracksFile = open("data/tracks_" + str(iPlane) + ".dat","w")
-        s = ("slope \t intercept\n")
-        tracksFile.write(s)
-        print "Building track graphs for plane "+str(iPlane)+"..."
-        MultiGraphs[iPlane].Draw("ap")
-        low, high = MultiGraphs[iPlane].GetXaxis().GetXmin(), MultiGraphs[iPlane].GetXaxis().GetXmax()
-        p = 0
-        for track in matchedList:
-            if np.abs(track.slope) < verticalThreshold: # ma serve ancora dopo il matching?
-                s = (str(track.slope) + "\t" + str(track.intercept) + "\n")
-                tracksFile.write(s)
-                func2plot = track.makeTF1(iPlane, p, low, high)
+    low = [None]*3
+    high = [None]*3
+    outFileXY = open("data/tracks_XY.dat","w")
+    outFileXZ = open("data/tracks_XZ.dat","w")
+    outFileYZ = open("data/tracks_YZ.dat","w")
+    outFiles = [outFileXY, outFileXZ, outFileYZ]
+    s = "slope \t intercept \n"
+
+    for plane in (XY,XZ,YZ):
+        cSaver.append(r.TCanvas())
+        MultiGraphs[plane].Draw("alp")
+        low[plane], high[plane] = MultiGraphs[plane].GetXaxis().GetXmin(), MultiGraphs[plane].GetXaxis().GetXmax()
+        outFiles[plane].write(s)
+
+    nMatchedNonVerticalTracks = 0
+    p = 0
+
+    for mtrack in Matched:
+        for plane in (XY,XZ,YZ):
+            if (np.abs(mtrack[plane].slope) < verticalThreshold) or (plane is XY):
+                s = (str(mtrack[plane].slope) + "\t" + str(mtrack[plane].intercept) + "\n")
+                outFiles[plane].write(s)
+                func2plot = mtrack[plane].makeTF1(plane, p, low[plane], high[plane])
                 funcGraph = r.TGraph(func2plot)
-                MultiGraphs[iPlane].Add(funcGraph)
+                MultiGraphs[plane].Add(funcGraph)
                 p += 1
-        tracksFile.close()
+
+    for plane in (XY,XZ,YZ):
+        outFiles[plane].close()
+
+    #for matchedList in Matched: #for every plane
+    #    iPlane += 1
+    #    tracksFile = open("data/tracks_" + str(iPlane) + ".dat","w")
+    #    s = ("slope \t intercept\n")
+    #    tracksFile.write(s)
+    #    print "Building track graphs for plane "+str(iPlane)+"..."
+    #    MultiGraphs[iPlane].Draw("ap")
+    #    low, high = MultiGraphs[iPlane].GetXaxis().GetXmin(), MultiGraphs[iPlane].GetXaxis().GetXmax()
+    #    p = 0
+    #    for track in matchedList:
+    #        if np.abs(track.slope) < verticalThreshold: # ma serve ancora dopo il matching?
+    #            s = (str(track.slope) + "\t" + str(track.intercept) + "\n")
+    #            tracksFile.write(s)
+    #            func2plot = track.makeTF1(iPlane, p, low, high)
+    #            funcGraph = r.TGraph(func2plot)
+    #            MultiGraphs[iPlane].Add(funcGraph)
+    #            p += 1
+    #    tracksFile.close()
     print "Found "+str(p)+" non-vertical tracks."
-    return 1
+    return Matched
 
 
 
 def matchTracklets(TrackLists):
-    matched = [], [], []
+    #mxy, mxz, myz = [], [], []
+    matchedtrk = []
     list1 = TrackLists[XY]
     list2 = TrackLists[XZ]
     list3 = TrackLists[YZ]
@@ -367,13 +405,22 @@ def matchTracklets(TrackLists):
         for track2 in list2:
             for track3 in list3:
                 #if correspondingHits(track1, track2, X) and correspondingHits(track1, track3, Y):
-                if track1.hitList == track2.hitList and track1.hitList == track3.hitList:
-                    #matched.append( (track1, track2, track3) )
-                    matched[XY].append(track1)
-                    matched[XZ].append(track2)
-                    matched[YZ].append(track3)
-    print "Found "+str(len(matched[XY]))+" matching tracks."
-    return matched
+                if (track1.hitList == track2.hitList 
+                    and track1.hitList == track3.hitList
+                    and len(track1.hitList) > minHitsPerTrack
+                    and len(track2.hitList) > minHitsPerTrack
+                    and len(track3.hitList) > minHitsPerTrack):
+                    matchedtrk.append( (track1, track2, track3) )
+                    #mxy.append(track1)
+                    #mxz.append(track2)
+                    #myz.append(track3)
+    # removing duplicates
+    matchedtrk = list(set(matchedtrk))
+    #mxy = list(set(mxy))
+    #mxz = list(set(mxz))
+    #myz = list(set(myz))
+    print "Found "+str(len(matchedtrk))+" matching tracks"
+    return matchedtrk
 
 
 def correspondingHits(track1, track2, axis):
@@ -417,7 +464,11 @@ def createHoughGraph(mg,tracks,theta,Tracklets):
 #################### MAIN PROGRAM ##############################
 
 if __name__ == "__main__":
-    print "HOUGH START..."       
+    print "HOUGH START..."
+
+    global cSaver, minHitsPerTrack
+    cSaver = []
+    minHitsPerTrack = 4
 
     binsx, binsy, rhoSpace = 0, 0, np.linspace(0, 1000, 1000)
 
@@ -428,7 +479,7 @@ if __name__ == "__main__":
     PeakLists = [],[],[]
     ParamLists = [],[],[]
     Tracklets = [],[],[] #tracks on every plane
-    Matched = [],[],[] #tracks on every plane
+    #Matched = [],[],[] #tracks on every plane
     Dictionaries = mydict(),mydict(),mydict()
     #Matrices = matrixInit(),matrixInit(),matrixInit()
     minTheta, maxTheta, thetaBinning = 0.0, 180.0, 0.2
@@ -452,12 +503,14 @@ if __name__ == "__main__":
         print "ERROR: createHoughGraph"
         sys.exit(1)
     
-    if not makeTracklets(MultiGraphs, Tracklets, Matched):
+    Matched = makeTracklets(MultiGraphs, Tracklets)
+    if not Matched:
         print "ERROR: makeTracklets"
         sys.exit(1)
 
     print "Saving data..."
     for mg in MultiGraphs:
+        cSaver.append(r.TCanvas())
         mg.Draw("alp")
         mg.Write()
 
@@ -466,5 +519,5 @@ if __name__ == "__main__":
     #    print "ERROR: matchTracklets"
     #    sys.exit(1)
 
-    sys.exit(0)
     print "HOUGH END."
+    sys.exit(0)
