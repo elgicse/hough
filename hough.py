@@ -21,8 +21,8 @@ def new_numpy1d_with_pointer(size):
     return np_a, pointer
 
 
-def key2index(key,rmin,rmax,thmin,thmax):
-    rowIdx = int(np.round( (key[1]-thmin)*(binsx-1)/(thmax-thmin) ))
+def key2index(key,rmin,rmax,thmin,thmax,plane):
+    rowIdx = int(np.round( (key[1]-thmin)*(binsx[plane]-1)/(thmax-thmin) ))
     colIdx = int(np.round( (key[0]-rmin)*(binsy-1)/(rmax-rmin) ))
     return rowIdx,colIdx
 
@@ -41,28 +41,32 @@ def makeMatrices(Dictionaries):
     global rhomax, rhomin, thetamax, thetamin
     rhomax = []
     rhomin = []
+    thetamax = []
+    thetamin = []
     plane = 0
     for dictionary in Dictionaries:
         dictionary.update({ "source":{},
-                            "c_source":arr.array( 'L', [0]*binsx ) ,
+                            "c_source":arr.array( 'L', [0]*binsx[plane] ) ,
                             "dest":{},
-                            "c_dest":arr.array( 'L', [0]*binsx )
+                            "c_dest":arr.array( 'L', [0]*binsx[plane] )
                             })
-        for i in xrange(binsx):
+        for i in xrange(binsx[plane]):
             dictionary.source[i], dictionary.c_source[i] = new_numpy1d_with_pointer( binsy )
             dictionary.dest[i], dictionary.c_dest[i]     = new_numpy1d_with_pointer( binsy )    
         keys = getKeyList(dictionary)
         rhomax.append( max(keys,key=lambda k: k[0])[0] )
         rhomin.append( min(keys,key=lambda k: k[0])[0] )
-        if plane is 0: # theta is always the same array
-            thetamax = max(keys,key=lambda k: k[1])[1]
-            thetamin = min(keys,key=lambda k: k[1])[1]
+        thetamax.append( max(keys,key=lambda k: k[1])[1] )
+        thetamin.append( min(keys,key=lambda k: k[1])[1] )
+        #if plane is 0: # theta is always the same array
+        #    thetamax = max(keys,key=lambda k: k[1])[1]
+        #    thetamin = min(keys,key=lambda k: k[1])[1]
         for key in keys:
             if dictionary[key][W] > minHitsPerTrack: #remove background prior to TSpectrum2 evaluation
-                i,j = key2index(key,rhomin[plane],rhomax[plane],thetamin,thetamax)
+                i,j = key2index(key,rhomin[plane],rhomax[plane],thetamin[plane],thetamax[plane],plane)
                 dictionary.source[i][j] = dictionary[key][W]
-        sourceHist = r.TH2F("sourceHist", "sourceHist", binsx, 0, binsx, binsy, 0, binsy)
-        for j in range(binsx):
+        sourceHist = r.TH2F("sourceHist", "sourceHist", binsx[plane], 0, binsx[plane], binsy, 0, binsy)
+        for j in range(binsx[plane]):
             for k in range(binsy):
                 sourceHist.SetBinContent(j+1,k+1,dictionary.source[j][k])
         cSaver.append(r.TCanvas())
@@ -185,33 +189,47 @@ def calcRho(plane,th,x,y,z):
 
 
 def setDictionaries(dictionaries,tracks,theta):
+    global binsx, binsy
+    binsx = [None]*3
     for t in itools.ifilter(isGood,tracks):
         hits = xrange(t.vplen)
         for h in hits:
             x,y,z = getXYZ(h,t)
-            rho = [None]*3  
-            for th in theta:
-                rho[XY] = calcRho(XY,th,x,y,z).binned()
-                rho[XZ] = calcRho(XZ,th,x,y,z).binned()
-                rho[YZ] = calcRho(YZ,th,x,y,z).binned()
-                hit = [x, y, z]
-                dictionaries[XY].setdefault((rho[XY],th), {'hitlist':[], W:0})
-                dictionaries[XY][(rho[XY],th)]['hitlist'].append(hit)
-                dictionaries[XY][(rho[XY],th)][W]+=1
-                dictionaries[XZ].setdefault((rho[XZ],th), {'hitlist':[], W:0})
-                dictionaries[XZ][(rho[XZ],th)]['hitlist'].append(hit)
-                dictionaries[XZ][(rho[XZ],th)][W]+=1
-                dictionaries[YZ].setdefault((rho[YZ],th), {'hitlist':[], W:0})
-                dictionaries[YZ][(rho[YZ],th)]['hitlist'].append(hit)
-                dictionaries[YZ][(rho[YZ],th)][W]+=1
+            rho = [None]*3
+            hit = [x, y, z]
 
-
-    global binsx, binsy, rhoSpace
-    rhoSpace = calcRho(YZ,th,x,y,z).bins
-    binsy = calcRho(YZ,th,x,y,z).nrBins
-    binsx = len(theta)   
+            for plane in xrange(3):
+                for th in theta[plane]:
+                    rho[plane] = calcRho(plane,th,x,y,z).binned()
+                    dictionaries[plane].setdefault( (rho[plane],th), {'hitlist':[], W:0} )
+                    dictionaries[plane][(rho[plane],th)]['hitlist'].append(hit)
+                    dictionaries[plane][(rho[plane],th)][W]+=1
+                binsx[plane] = len(theta[plane])
+                binsy = calcRho(plane,th,x,y,z).nrBins
     print "DICTS CREATED"
     return True
+
+#            for th in theta:
+#                rho[XY] = calcRho(XY,th,x,y,z).binned()
+#                rho[XZ] = calcRho(XZ,th,x,y,z).binned()
+#                rho[YZ] = calcRho(YZ,th,x,y,z).binned()
+#                #hit = [x, y, z]
+#                dictionaries[XY].setdefault((rho[XY],th), {'hitlist':[], W:0})
+#                dictionaries[XY][(rho[XY],th)]['hitlist'].append(hit)
+#                dictionaries[XY][(rho[XY],th)][W]+=1
+#                dictionaries[XZ].setdefault((rho[XZ],th), {'hitlist':[], W:0})
+#                dictionaries[XZ][(rho[XZ],th)]['hitlist'].append(hit)
+#                dictionaries[XZ][(rho[XZ],th)][W]+=1
+#                dictionaries[YZ].setdefault((rho[YZ],th), {'hitlist':[], W:0})
+#                dictionaries[YZ][(rho[YZ],th)]['hitlist'].append(hit)
+#                dictionaries[YZ][(rho[YZ],th)][W]+=1
+#
+#    global binsx, binsy, rhoSpace
+#    rhoSpace = calcRho(YZ,th,x,y,z).bins
+#    binsy = calcRho(YZ,th,x,y,z).nrBins
+#    binsx = len(theta)   
+#    print "DICTS CREATED"
+#    return True
 
 
 
@@ -233,7 +251,7 @@ class myTrack():
         self.rootTF1.SetMarkerStyle(1)
         return self.rootTF1
     def analyzePeak(self,plane,dict):
-        self.theta = thetamin + self.xPeak * (thetamax-thetamin)/(binsx-1)
+        self.theta = thetamin[plane] + self.xPeak * (thetamax[plane]-thetamin[plane])/(binsx[plane]-1)
         self.rho = rhomin[plane] + self.yPeak * (rhomax[plane]-rhomin[plane])/(binsy-1)
         self.slope = -1 * np.cos(self.theta)/np.sin(self.theta)
         self.intercept = self.rho / np.sin(self.theta)
@@ -246,7 +264,7 @@ class myTrack():
 def areSimilarKeys(plane,k1,k2):
     """check if two keys are similar"""
     rhoToll = 0.5*(rhomax[plane]-rhomin[plane])/binsy
-    thetaToll = 0.5*(thetamax-thetamin)/binsx
+    thetaToll = 0.5*(thetamax[plane]-thetamin[plane])/binsx[plane]
     diff1 = np.abs(k1[0]-k2[0])
     diff2 = np.abs(k1[1]-k2[1])
     if (diff1<rhoToll) and (diff2<thetaToll):
@@ -269,10 +287,10 @@ def searchPeaks(dictionaries,Tracklets):
         if iPlane is XY:
             threshold = 50
             sigma = 4
-        nPeaks = spectrum.SearchHighRes(dict.c_source,dict.c_dest,binsx,binsy,sigma,threshold,bgRemove,3,markovReplace,3)
+        nPeaks = spectrum.SearchHighRes(dict.c_source,dict.c_dest,binsx[iPlane],binsy,sigma,threshold,bgRemove,3,markovReplace,3)
         print "Plane " + str(iPlane) + ": " + str(nPeaks) + " peaks found in Hough accumulator."
-        smoothedHist = r.TH2F("smoothedHist"+str(iPlane), "smoothedHist"+str(iPlane), binsx, 0, binsx, binsy, 0, binsy)
-        for j in range(binsx):
+        smoothedHist = r.TH2F("smoothedHist"+str(iPlane), "smoothedHist"+str(iPlane), binsx[iPlane], 0, binsx[iPlane], binsy, 0, binsy)
+        for j in range(binsx[iPlane]):
             for k in range(binsy):
                 smoothedHist.SetBinContent(j+1,k+1,dict.dest[j][k])
         cSaver.append(r.TCanvas())
@@ -397,7 +415,7 @@ if __name__ == "__main__":
     cSaver = []
     minHitsPerTrack = 4
 
-    binsx, binsy, rhoSpace = 0, 0, np.linspace(0, 1000, 1000)
+    #binsx, binsy, rhoSpace = 0, 0, np.linspace(0, 1000, 1000)
 
     rootPreProcessing()
 
@@ -408,8 +426,14 @@ if __name__ == "__main__":
     Tracklets = [],[],[] #tracks on every plane
     Dictionaries = mydict(),mydict(),mydict()
     #Matrices = matrixInit(),matrixInit(),matrixInit()
-    minTheta, maxTheta, thetaBinning = 0.0, 180.0, 0.4
-    theta = makeThetaArray(minTheta,maxTheta,thetaBinning)
+    #minTheta, maxTheta = 0.0, 180.0
+    minTheta = [0.0, 70.0, 70.0]
+    maxTheta = [180.0, 110.0, 110.0]
+    thetaBinning = [1, 0.2, 0.2]
+    theta = [None]*3
+    theta[XY] = makeThetaArray(minTheta[XY],maxTheta[XY],thetaBinning[XY])
+    theta[XZ] = makeThetaArray(minTheta[XZ],maxTheta[XZ],thetaBinning[XZ])
+    theta[YZ] = makeThetaArray(minTheta[YZ],maxTheta[YZ],thetaBinning[YZ])
 
         #root file descriptor
     ifd = r.TFile(inrootfile) #input file descriptor 
