@@ -58,7 +58,7 @@ def makeMatrices(Dictionaries):
             thetamax = max(keys,key=lambda k: k[1])[1]
             thetamin = min(keys,key=lambda k: k[1])[1]
         for key in keys:
-            #if dictionary[key][W] > minHitsPerTrack: #remove background prior to TSpectrum2 evaluation
+            if dictionary[key][W] > minHitsPerTrack: #remove background prior to TSpectrum2 evaluation
                 i,j = key2index(key,rhomin[plane],rhomax[plane],thetamin,thetamax)
                 dictionary.source[i][j] = dictionary[key][W]
         sourceHist = r.TH2F("sourceHist", "sourceHist", binsx, 0, binsx, binsy, 0, binsy)
@@ -266,9 +266,9 @@ def searchPeaks(dictionaries,Tracklets):
         threshold = 22
         bgRemove = r.kTRUE
         markovReplace = r.kFALSE
-        #if iPlane is XY:
-        #    threshold = 50
-        #    sigma = 3
+        if iPlane is XY:
+            threshold = 50
+            sigma = 4
         nPeaks = spectrum.SearchHighRes(dict.c_source,dict.c_dest,binsx,binsy,sigma,threshold,bgRemove,3,markovReplace,3)
         print "Plane " + str(iPlane) + ": " + str(nPeaks) + " peaks found in Hough accumulator."
         smoothedHist = r.TH2F("smoothedHist"+str(iPlane), "smoothedHist"+str(iPlane), binsx, 0, binsx, binsy, 0, binsy)
