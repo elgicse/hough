@@ -58,7 +58,7 @@ def makeMatrices(Dictionaries):
             thetamax = max(keys,key=lambda k: k[1])[1]
             thetamin = min(keys,key=lambda k: k[1])[1]
         for key in keys:
-            if dictionary[key][W] > minHitsPerTrack: #remove background prior to TSpectrum2 evaluation
+            #if dictionary[key][W] > minHitsPerTrack: #remove background prior to TSpectrum2 evaluation
                 i,j = key2index(key,rhomin[plane],rhomax[plane],thetamin,thetamax)
                 dictionary.source[i][j] = dictionary[key][W]
         sourceHist = r.TH2F("sourceHist", "sourceHist", binsx, 0, binsx, binsy, 0, binsy)
@@ -263,12 +263,12 @@ def searchPeaks(dictionaries,Tracklets):
         print "Searching tracks for plane "+str(iPlane)+"..."
         spectrum = r.TSpectrum2()
         sigma = 1.3
-        threshold = 23
-        bgRemove = r.kFALSE
+        threshold = 22
+        bgRemove = r.kTRUE
         markovReplace = r.kFALSE
-        if iPlane is XY:
-            threshold = 50
-            sigma = 3
+        #if iPlane is XY:
+        #    threshold = 50
+        #    sigma = 3
         nPeaks = spectrum.SearchHighRes(dict.c_source,dict.c_dest,binsx,binsy,sigma,threshold,bgRemove,3,markovReplace,3)
         print "Plane " + str(iPlane) + ": " + str(nPeaks) + " peaks found in Hough accumulator."
         smoothedHist = r.TH2F("smoothedHist"+str(iPlane), "smoothedHist"+str(iPlane), binsx, 0, binsx, binsy, 0, binsy)
@@ -338,15 +338,30 @@ def matchTracklets(TrackLists):
     for track1 in list1:
         for track2 in list2:
             for track3 in list3:
-                if (track1.hitList == track2.hitList 
-                    and track1.hitList == track3.hitList
-                    and len(track1.hitList) > minHitsPerTrack
-                    and len(track2.hitList) > minHitsPerTrack
-                    and len(track3.hitList) > minHitsPerTrack):
+                if (correspond(track1.hitList, track2.hitList, minHitsPerTrack)
+                    and correspond(track1.hitList, track3.hitList, minHitsPerTrack)):
+                #if (track1.hitList == track2.hitList 
+                #    and track1.hitList == track3.hitList
+                #    and len(track1.hitList) > minHitsPerTrack
+                #    and len(track2.hitList) > minHitsPerTrack
+                #    and len(track3.hitList) > minHitsPerTrack):
                     matchedtrk.append( (track1, track2, track3) )
     matchedtrk = list(set(matchedtrk))
     print "Found "+str(len(matchedtrk))+" matching tracks"
     return matchedtrk
+
+
+def correspond(hlist1, hlist2, minHits):
+    if (len(hlist1) > minHits) and (len(hlist2) > minHits):
+        nCommon = 0
+        for hit1 in hlist1:
+            for hit2 in hlist2:
+                if hit1 == hit2:
+                    nCommon += 1
+        if nCommon > minHits:
+            return True
+    else:
+        return False
 
 
 def correspondingHits(track1, track2, axis):
