@@ -23,7 +23,7 @@ def new_numpy1d_with_pointer(size):
 
 def key2index(key,rmin,rmax,thmin,thmax,plane):
     rowIdx = int(np.round( (key[1]-thmin)*(binsx[plane]-1)/(thmax-thmin) ))
-    colIdx = int(np.round( (key[0]-rmin)*(binsy-1)/(rmax-rmin) ))
+    colIdx = int(np.round( (key[0]-rmin)*(binsy[plane]-1)/(rmax-rmin) ))
     return rowIdx,colIdx
 
 
@@ -51,8 +51,8 @@ def makeMatrices(Dictionaries):
                             "c_dest":arr.array( 'L', [0]*binsx[plane] )
                             })
         for i in xrange(binsx[plane]):
-            dictionary.source[i], dictionary.c_source[i] = new_numpy1d_with_pointer( binsy )
-            dictionary.dest[i], dictionary.c_dest[i]     = new_numpy1d_with_pointer( binsy )    
+            dictionary.source[i], dictionary.c_source[i] = new_numpy1d_with_pointer( binsy[plane] )
+            dictionary.dest[i], dictionary.c_dest[i]     = new_numpy1d_with_pointer( binsy[plane] )    
         keys = getKeyList(dictionary)
         rhomax.append( max(keys,key=lambda k: k[0])[0] )
         rhomin.append( min(keys,key=lambda k: k[0])[0] )
@@ -65,9 +65,9 @@ def makeMatrices(Dictionaries):
             if dictionary[key][W] > minHitsPerTrack: #remove background prior to TSpectrum2 evaluation
                 i,j = key2index(key,rhomin[plane],rhomax[plane],thetamin[plane],thetamax[plane],plane)
                 dictionary.source[i][j] = dictionary[key][W]
-        sourceHist = r.TH2F("sourceHist", "sourceHist", binsx[plane], 0, binsx[plane], binsy, 0, binsy)
+        sourceHist = r.TH2F("sourceHist", "sourceHist", binsx[plane], 0, binsx[plane], binsy[plane], 0, binsy[plane])
         for j in range(binsx[plane]):
-            for k in range(binsy):
+            for k in range(binsy[plane]):
                 sourceHist.SetBinContent(j+1,k+1,dictionary.source[j][k])
         cSaver.append(r.TCanvas())
         sourceHist.Draw("surf2")
@@ -151,11 +151,11 @@ def transform(x1,x2,theta):
 
 class myRho():
     """raw and binned Rho values"""
-    def __init__(self, raw, minRho = -1000,maxRho = 1000,rhoRes = 2):
+    def __init__(self, raw, plane, minRho = [-1000,-400,-400],maxRho = [1000,400,400],rhoRes = [2,0.5,0.5]):
         self.raw = raw
-        self.minRho = minRho
-        self.maxRho = maxRho
-        self.rhoRes = rhoRes
+        self.minRho = minRho[plane]
+        self.maxRho = maxRho[plane]
+        self.rhoRes = rhoRes[plane]
         self.recalcBins()
     def recalcBins(self):
         self.nrBins = int((self.maxRho - self.minRho) / self.rhoRes)
@@ -170,6 +170,7 @@ class myRho():
         self.rhoRes = val
         self.recalcBins()
     def makeBinning(self):
+        self.recalcBins()
         val = [self.raw]
         digi = np.digitize(val,self.bins)
         out = self.bins[digi-1] + np.diff(self.bins)[digi-1]/2
@@ -184,13 +185,14 @@ def calcRho(plane,th,x,y,z):
         rho = transform(z,x,th)
     if plane == YZ:
         rho = transform(z,y,th)
-    return myRho(rho)
+    return myRho(rho,plane)
 
 
 
 def setDictionaries(dictionaries,tracks,theta):
     global binsx, binsy
     binsx = [None]*3
+    binsy = [None]*3
     for t in itools.ifilter(isGood,tracks):
         hits = xrange(t.vplen)
         for h in hits:
@@ -205,32 +207,9 @@ def setDictionaries(dictionaries,tracks,theta):
                     dictionaries[plane][(rho[plane],th)]['hitlist'].append(hit)
                     dictionaries[plane][(rho[plane],th)][W]+=1
                 binsx[plane] = len(theta[plane])
-                binsy = calcRho(plane,th,x,y,z).nrBins
+                binsy[plane] = calcRho(plane,th,x,y,z).nrBins
     print "DICTS CREATED"
     return True
-
-#            for th in theta:
-#                rho[XY] = calcRho(XY,th,x,y,z).binned()
-#                rho[XZ] = calcRho(XZ,th,x,y,z).binned()
-#                rho[YZ] = calcRho(YZ,th,x,y,z).binned()
-#                #hit = [x, y, z]
-#                dictionaries[XY].setdefault((rho[XY],th), {'hitlist':[], W:0})
-#                dictionaries[XY][(rho[XY],th)]['hitlist'].append(hit)
-#                dictionaries[XY][(rho[XY],th)][W]+=1
-#                dictionaries[XZ].setdefault((rho[XZ],th), {'hitlist':[], W:0})
-#                dictionaries[XZ][(rho[XZ],th)]['hitlist'].append(hit)
-#                dictionaries[XZ][(rho[XZ],th)][W]+=1
-#                dictionaries[YZ].setdefault((rho[YZ],th), {'hitlist':[], W:0})
-#                dictionaries[YZ][(rho[YZ],th)]['hitlist'].append(hit)
-#                dictionaries[YZ][(rho[YZ],th)][W]+=1
-#
-#    global binsx, binsy, rhoSpace
-#    rhoSpace = calcRho(YZ,th,x,y,z).bins
-#    binsy = calcRho(YZ,th,x,y,z).nrBins
-#    binsx = len(theta)   
-#    print "DICTS CREATED"
-#    return True
-
 
 
 class myTrack():
@@ -252,7 +231,7 @@ class myTrack():
         return self.rootTF1
     def analyzePeak(self,plane,dict):
         self.theta = thetamin[plane] + self.xPeak * (thetamax[plane]-thetamin[plane])/(binsx[plane]-1)
-        self.rho = rhomin[plane] + self.yPeak * (rhomax[plane]-rhomin[plane])/(binsy-1)
+        self.rho = rhomin[plane] + self.yPeak * (rhomax[plane]-rhomin[plane])/(binsy[plane]-1)
         self.slope = -1 * np.cos(self.theta)/np.sin(self.theta)
         self.intercept = self.rho / np.sin(self.theta)
         for key in getKeyList(dict):
@@ -263,7 +242,7 @@ class myTrack():
 
 def areSimilarKeys(plane,k1,k2):
     """check if two keys are similar"""
-    rhoToll = 0.5*(rhomax[plane]-rhomin[plane])/binsy
+    rhoToll = 0.5*(rhomax[plane]-rhomin[plane])/binsy[plane]
     thetaToll = 0.5*(thetamax[plane]-thetamin[plane])/binsx[plane]
     diff1 = np.abs(k1[0]-k2[0])
     diff2 = np.abs(k1[1]-k2[1])
@@ -281,17 +260,17 @@ def searchPeaks(dictionaries,Tracklets):
         print "Searching tracks for plane "+str(iPlane)+"..."
         spectrum = r.TSpectrum2()
         sigma = 1.3
-        threshold = 22
+        threshold = 23
         bgRemove = r.kTRUE
         markovReplace = r.kFALSE
         if iPlane is XY:
             threshold = 50
             sigma = 4
-        nPeaks = spectrum.SearchHighRes(dict.c_source,dict.c_dest,binsx[iPlane],binsy,sigma,threshold,bgRemove,3,markovReplace,3)
+        nPeaks = spectrum.SearchHighRes(dict.c_source,dict.c_dest,binsx[iPlane],binsy[iPlane],sigma,threshold,bgRemove,3,markovReplace,3)
         print "Plane " + str(iPlane) + ": " + str(nPeaks) + " peaks found in Hough accumulator."
-        smoothedHist = r.TH2F("smoothedHist"+str(iPlane), "smoothedHist"+str(iPlane), binsx[iPlane], 0, binsx[iPlane], binsy, 0, binsy)
+        smoothedHist = r.TH2F("smoothedHist"+str(iPlane), "smoothedHist"+str(iPlane), binsx[iPlane], 0, binsx[iPlane], binsy[iPlane], 0, binsy[iPlane])
         for j in range(binsx[iPlane]):
-            for k in range(binsy):
+            for k in range(binsy[iPlane]):
                 smoothedHist.SetBinContent(j+1,k+1,dict.dest[j][k])
         cSaver.append(r.TCanvas())
         smoothedHist.Draw("surf2")
