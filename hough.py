@@ -263,11 +263,13 @@ def searchPeaks(dictionaries,Tracklets):
         print "Searching tracks for plane "+str(iPlane)+"..."
         spectrum = r.TSpectrum2()
         sigma = 1.3
-        threshold = 15
+        threshold = 23
+        bgRemove = r.kFALSE
+        markovReplace = r.kFALSE
         if iPlane is XY:
-            threshold = 15
-            sigma = 30
-        nPeaks = spectrum.SearchHighRes(dict.c_source,dict.c_dest,binsx,binsy,sigma,threshold,r.kTRUE,3,r.kFALSE,3)
+            threshold = 50
+            sigma = 3
+        nPeaks = spectrum.SearchHighRes(dict.c_source,dict.c_dest,binsx,binsy,sigma,threshold,bgRemove,3,markovReplace,3)
         print "Plane " + str(iPlane) + ": " + str(nPeaks) + " peaks found in Hough accumulator."
         smoothedHist = r.TH2F("smoothedHist"+str(iPlane), "smoothedHist"+str(iPlane), binsx, 0, binsx, binsy, 0, binsy)
         for j in range(binsx):
@@ -391,7 +393,7 @@ if __name__ == "__main__":
     Tracklets = [],[],[] #tracks on every plane
     Dictionaries = mydict(),mydict(),mydict()
     #Matrices = matrixInit(),matrixInit(),matrixInit()
-    minTheta, maxTheta, thetaBinning = 0.0, 180.0, 0.2
+    minTheta, maxTheta, thetaBinning = 0.0, 180.0, 0.4
     theta = makeThetaArray(minTheta,maxTheta,thetaBinning)
 
         #root file descriptor
