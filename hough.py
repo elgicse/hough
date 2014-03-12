@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+# IMPORTANT:
+# Documentation stored at
+# /afs/cern.ch/user/e/egraveri/public/VeloHough.pdf
 import ROOT as r
 import numpy as np
 import itertools as itools
@@ -58,9 +61,7 @@ def makeMatrices(Dictionaries):
         rhomin.append( min(keys,key=lambda k: k[0])[0] )
         thetamax.append( max(keys,key=lambda k: k[1])[1] )
         thetamin.append( min(keys,key=lambda k: k[1])[1] )
-        #if plane is 0: # theta is always the same array
-        #    thetamax = max(keys,key=lambda k: k[1])[1]
-        #    thetamin = min(keys,key=lambda k: k[1])[1]
+
         for key in keys:
             if dictionary[key][W] > minHitsPerTrack: #remove background prior to TSpectrum2 evaluation
                 i,j = key2index(key,rhomin[plane],rhomax[plane],thetamin[plane],thetamax[plane],plane)
@@ -86,10 +87,6 @@ def rootPreProcessing():
 
 def mgInit():
     return r.TMultiGraph()
-
-
-def matrixInit():
-    return np.matrix()
 
 
 def makeThetaArray(mint,maxt,binning):
@@ -337,11 +334,6 @@ def matchTracklets(TrackLists):
             for track3 in list3:
                 if (correspond(track1.hitList, track2.hitList, minHitsPerTrack)
                     and correspond(track1.hitList, track3.hitList, minHitsPerTrack)):
-                #if (track1.hitList == track2.hitList 
-                #    and track1.hitList == track3.hitList
-                #    and len(track1.hitList) > minHitsPerTrack
-                #    and len(track2.hitList) > minHitsPerTrack
-                #    and len(track3.hitList) > minHitsPerTrack):
                     matchedtrk.append( (track1, track2, track3) )
     matchedtrk = list(set(matchedtrk))
     print "Found "+str(len(matchedtrk))+" matching tracks"
@@ -357,22 +349,6 @@ def correspond(hlist1, hlist2, minHits):
                     nCommon += 1
         if nCommon > minHits:
             return True
-    else:
-        return False
-
-
-def correspondingHits(track1, track2, axis):
-    hitList1 = track1.getHitList()
-    hitList2 = track2.getHitList()
-    avgNumberOfHits = 0.5 * ( len(hitList1) + len(hitList2) )
-    minHitsInCommon = int(0.7 * avgNumberOfHits) - 1
-    nHitsInCommon = 0
-    for hit1 in hitList1:
-        for hit2 in hitList2:
-            if hit1[axis] == hit2[axis]:
-                nHitsInCommon += 1
-    if nHitsInCommon > minHitsInCommon:
-        return True
     else:
         return False
 
@@ -394,8 +370,6 @@ if __name__ == "__main__":
     cSaver = []
     minHitsPerTrack = 4
 
-    #binsx, binsy, rhoSpace = 0, 0, np.linspace(0, 1000, 1000)
-
     rootPreProcessing()
 
         #init data structures
@@ -404,8 +378,6 @@ if __name__ == "__main__":
     ParamLists = [],[],[]
     Tracklets = [],[],[] #tracks on every plane
     Dictionaries = mydict(),mydict(),mydict()
-    #Matrices = matrixInit(),matrixInit(),matrixInit()
-    #minTheta, maxTheta = 0.0, 180.0
     minTheta = [0.0, 70.0, 70.0]
     maxTheta = [180.0, 110.0, 110.0]
     thetaBinning = [1, 0.2, 0.2]
