@@ -18,8 +18,6 @@ XY,XZ,YZ = 0,1,2
 YX,ZX,ZY = 0,1,2
 X,Y,Z,W = 0,1,2,3
 
-dataSets = [dict()]*3
-
 
 def new_numpy1d_with_pointer(size):
     np_a = np.zeros( size, dtype=np.float32 )
@@ -41,17 +39,6 @@ def getKeyList(dict):
     del keylist[keylist.index("c_dest")]
     return keylist
 
-
-def makeDictsForCLUBS(Dictionaries):
-    plane = 0
-    for dictionary in Dictionaries:
-        #keys = getKeyList(dictionary)
-        keys = dictionary.keys()
-        for k in keys:
-            if dictionary[k][W] > minHitsPerTrack:
-                dataSets[plane][k]=dictionary[k][W]
-        plane += 1
-    return dataSets
 
 
 def makeMatrices(Dictionaries):
@@ -156,7 +143,7 @@ def createHitsGraph(mg,tracks):
         mg[XZ].Add(hitGraph(t,XZ))
         mg[YZ].Add(hitGraph(t,YZ))
     for g in xrange(3):
-        #cSaver.append(r.TCanvas())
+        cSaver.append(r.TCanvas())
         mg[g].SetTitle("HitGraph_plane_"+str(g))
         mg[g].Write()
     return True
@@ -175,7 +162,7 @@ def transform(x1,x2,theta):
 
 class myRho():
     """raw and binned Rho values"""
-    def __init__(self, raw, plane, minRho = [-120,-900,-900],maxRho = [120,900,900],rhoRes = [0.1,0.1,0.1]):
+    def __init__(self, raw, plane, minRho = [-1000,-400,-400],maxRho = [1000,400,400],rhoRes = [1,0.5,0.5]):
         self.raw = raw
         self.minRho = minRho[plane]
         self.maxRho = maxRho[plane]
@@ -243,7 +230,7 @@ class myTrack():
     def __init__(self, peakParam):
         self.xPeak = peakParam[0]
         self.yPeak = peakParam[1]
-        #self.peakAmplitude = peakParam[2] #not good for use with CLUBS
+        self.peakAmplitude = peakParam[2]
         self.hitList = []
     def getHitList(self):
         return self.hitList
@@ -263,58 +250,21 @@ class myTrack():
         for key in getKeyList(dict):
             if areSimilarKeys(plane, key, (self.rho,self.theta)):
                 self.hitList += dict[key]['hitlist']
-    def analyzeClubsPeak(self,plane,dict):
-        val = [self.xPeak]
-        #print "val = %s"%val
-        digi = np.digitize(val,theta[plane])
-        self.theta = theta[plane][digi][0]
-        self.rho = myRho(self.yPeak,plane).binned()
-        #print self.rho, self.theta
-        self.slope = -1 * np.cos(self.theta)/np.sin(self.theta)
-        self.intercept = self.rho / np.sin(self.theta)
-        for key in dict.keys():
-            # CONTROLLARE
-            if areSimilarKeys(key, (self.rho,self.theta)):
-                self.hitList += dict[key]['hitlist']
         
-def areSimilarKeys(k1,k2):
-    toll = 0.05
+
+
+def areSimilarKeys(plane,k1,k2):
+    """check if two keys are similar"""
+    tollBins = 0.75
+    rhoToll = tollBins*(rhomax[plane]-rhomin[plane])/binsy[plane]
+    thetaToll = tollBins*(thetamax[plane]-thetamin[plane])/binsx[plane]
     diff1 = np.abs(k1[0]-k2[0])
     diff2 = np.abs(k1[1]-k2[1])
-    max1 = np.abs(max(k1[0],k2[0]))
-    max2 = np.abs(max(k1[1],k2[1]))
-    #print k1, k2, (diff1 < toll*max1 and diff2 < toll*max2)
-    if diff1 < toll*max1 and diff2 < toll*max2:
+    if (diff1<rhoToll) and (diff2<thetaToll):
         return True
     else:
         return False
 
-#def areSimilarKeys(plane,k1,k2):
-#    """check if two keys are similar"""
-#    tollBins = 0.75
-#    rhoToll = tollBins*(rhomax[plane]-rhomin[plane])/binsy[plane]
-#    thetaToll = tollBins*(thetamax[plane]-thetamin[plane])/binsx[plane]
-#    diff1 = np.abs(k1[0]-k2[0])
-#    diff2 = np.abs(k1[1]-k2[1])
-#    if (diff1<rhoToll) and (diff2<thetaToll):
-#        return True
-#    else:
-#        return False
-
-
-def searchPeaksCLUBS(dictionaries, Tracklets):
-    dataSets = makeDictsForCLUBS(dictionaries)
-    listOfPeaks = [None]*3
-    for plane in xrange(3):
-        temp = CLUBSclustering(dataSets[plane], 2)
-        templist = [el[0] for el in temp]
-        listOfPeaks[plane] = templist # take only the CoGs for now
-        #listOfPeaks[plane] = CLUBSclustering(dataSets[plane], 2)
-        print "Plane " + str(plane) + ": " + str(len(listOfPeaks[plane])) + " peaks found in Hough accumulator."
-        for peak in listOfPeaks[plane]:
-            trackCandidate = myTrack(peak)
-            trackCandidate.analyzeClubsPeak(plane,dictionaries[plane])
-            Tracklets[plane].append(trackCandidate)
 
 
 def searchPeaks(dictionaries,Tracklets):
@@ -409,13 +359,13 @@ def matchTracklets(TrackLists):
     list3 = TrackLists[YZ]
     matched3DTracks = []
     minHitsForMatching = 4
-    print "Now matching %s + %s + %s tracklets..."%(len(list1), len(list2), len(list3))
+    print "Now matching tracklets..."
     for track1 in list1:
         for track2 in list2:
             for track3 in list3:
                 # Change minhitspertrack to 70% of the number of hits of the tracklet with less hits
                 minHitsForMatching = min( minHitsPerTrack, int(0.7 * min(len(track1.hitList), len(track2.hitList), len(track3.hitList))) )
-                print minHitsForMatching, minHitsPerTrack, len(track1.hitList), len(track2.hitList), len(track3.hitList)
+                print minHitsForMatching
                 if (correspond(track1.hitList, track2.hitList, minHitsForMatching)
                     and correspond(track1.hitList, track3.hitList, minHitsForMatching)):
                     matchedtrk.append( (track1, track2, track3) )
@@ -443,9 +393,8 @@ def correspond(hlist1, hlist2, minHits):
 
 def createHoughGraph(mg,tracks,theta,Tracklets):
     setDictionaries(Dictionaries,tracks,theta)
-    #makeMatrices(Dictionaries)
-    makeDictsForCLUBS(Dictionaries)
-    searchPeaksCLUBS(Dictionaries,Tracklets)
+    makeMatrices(Dictionaries)
+    searchPeaks(Dictionaries,Tracklets)
     return True
 
 
@@ -510,12 +459,9 @@ if __name__ == "__main__":
     ParamLists = [],[],[]
     Tracklets = [],[],[] #tracks on every plane
     Dictionaries = mydict(),mydict(),mydict()
-    #minTheta = [0.0, 70.0, 70.0]
-    #maxTheta = [180.0, 110.0, 110.0]
-    #thetaBinning = [0.5, 0.1, 0.1]
-    minTheta = [0.0, 0.0, 0.0]
-    maxTheta = [180.1, 180.1, 180.1]
-    thetaBinning = [0.1, 0.1, 0.1]
+    minTheta = [0.0, 70.0, 70.0]
+    maxTheta = [180.0, 110.0, 110.0]
+    thetaBinning = [0.5, 0.1, 0.1]
     theta = [None]*3
     theta[XY] = makeThetaArray(minTheta[XY],maxTheta[XY],thetaBinning[XY])
     theta[XZ] = makeThetaArray(minTheta[XZ],maxTheta[XZ],thetaBinning[XZ])
